@@ -31,8 +31,6 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Variables nécessaires au build (voir devops-reference.md §Variables).
-          # Valeurs injectées via GitHub Secrets, jamais en clair ici.
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
