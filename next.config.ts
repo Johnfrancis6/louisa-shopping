@@ -1,4 +1,4 @@
-import { withSentryConfig } from '@sentry/nextjs';
+import { withSentryConfig } from '@sentry/nextjs/config';
 import type { NextConfig } from 'next'
 
 /**
@@ -12,9 +12,7 @@ const nextConfig: NextConfig = {
   // 'use cache' (fiches produit, contrat §C) — flag léger Next 15,
   // ne pas confondre avec dynamicIO (non nécessaire ici, pas de besoin de
   // désactiver le pré-rendu global).
-  experimental: {
-    useCache: true,
-  },
+ cacheComponents: true,
 
   images: {
     // Les médias produits sont servis par Cloudinary avec f_auto,q_auto déjà
