@@ -26,11 +26,11 @@
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.41.0",
-    "next": "^16.3.4",
+    "next": "16.3.4",
     "postcss": "^8.5.28",
     "postgres": "^3.4.9",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
     "tailwindcss-animate": "^1.0.7",
@@ -43,5 +43,13 @@
     "@types/react-dom": "^19.2.7",
     "eslint": "^10.10.0",
     "eslint-config-next": "^16.3.4"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true,
+    "sharp@0.35.4": true,
+    "@sentry/cli@2.58.6": true
   }
 }
