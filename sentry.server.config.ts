@@ -1,13 +1,19 @@
-import * as Sentry from '@sentry/nextjs'
+// This file configures the initialization of Sentry on the server.
+// The config you add here will be used whenever the server handles a request.
+// https://docs.sentry.io/platforms/javascript/guides/nextjs/
+
+import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-  tracesSampleRate: 0.2,
+  dsn: "https://298f39837a6649d175a766cc2f8b75e4@o4512038411370496.ingest.de.sentry.io/4512038430244944",
 
-  // Aucune donnée client (téléphone, adresse) ne doit remonter dans les
-  // breadcrumbs/contexte Sentry — Customer contient phone/email/address_json
-  // (contrat §B). À respecter côté agent Logique métier lors des
-  // Sentry.captureException/setContext manuels.
-  sendDefaultPii: false,
-})
+  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
+  tracesSampleRate: 1,
+
+  dataCollection: {
+    // To disable sending user data and HTTP bodies, uncomment the lines below. For more info visit:
+    // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#dataCollection
+    // userInfo: false,
+    // httpBodies: [],
+  },
+});

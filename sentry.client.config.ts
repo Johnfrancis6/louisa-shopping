@@ -16,7 +16,7 @@ Sentry.init({
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 0.1,
 
-  integrations: [
-    Sentry.replayIntegration(),
-  ],
+  // integrations: [
+  //   Sentry.replayIntegration(),
+  // ],
 })

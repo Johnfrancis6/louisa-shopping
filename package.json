@@ -14,7 +14,7 @@
     "db:seed": "tsx src/lib/db/seed.ts"
   },
   "dependencies": {
-    "@sentry/nextjs": "^8.47.0",
+    "@sentry/nextjs": "^10.73.0",
     "@supabase/supabase-js": "^2.47.0",
     "@upstash/redis": "^1.34.0",
     "autoprefixer": "^10.4.20",

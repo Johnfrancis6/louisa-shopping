@@ -10,3 +10,6 @@ out
 *.log
 drizzle/meta
 .lighthouseci
+
+# Sentry Config File
+.env.sentry-build-plugin
