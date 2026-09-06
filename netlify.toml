@@ -1,0 +1,30 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# Netlify détecte Next.js 15 App Router automatiquement et provisionne
+# l'adaptateur OpenNext (Server Actions, ISR/PPR, 'use cache', revalidateTag()
+# en Full/Partial Support — vérifié 09/2026, voir devops-reference.md).
+# Ne pas définir manuellement de plugin @netlify/plugin-nextjs : auto-géré.
+
+[build.environment]
+  NODE_VERSION = "22"
+  # NPM_FLAGS = "--production=false"  # décommenter si postinstall dev requis
+
+# Déploiement piloté par GitHub Actions (voir .github/workflows/ci-cd.yml) :
+# on désactive les builds automatiques Netlify sur push pour éviter un
+# double build (CI + Netlify) qui consommerait deux fois le quota de minutes.
+# À configurer côté dashboard Netlify : Site settings > Build & deploy >
+# Stop builds (builds déclenchés uniquement via `netlify deploy` en CI).
+
+[[headers]]
+  for = "/checkout/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+# Note : les médias produits sont servis directement depuis Cloudinary,
+# ce header ne s'applique qu'à d'éventuels assets statiques locaux.
