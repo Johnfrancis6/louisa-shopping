@@ -73,13 +73,22 @@ jobs:
       - name: Deploy Netlify (draft, build délégué à Netlify)
         id: netlify_deploy
         run: |
+          set +e
           npx --yes netlify-cli@21 deploy \
             --build \
             --context deploy-preview \
             --alias "pr-${{ github.event.number }}" \
             --message "Deploy preview PR #${{ github.event.number }}" \
             --json > deploy_output.json
-          cat deploy_output.json
+          exit_code=$?
+          set -e
+          echo "----- Sortie netlify deploy -----"
+          cat deploy_output.json || echo "(fichier vide ou introuvable)"
+          echo "----------------------------------"
+          if [ $exit_code -ne 0 ]; then
+            echo "::error::netlify deploy a échoué (exit $exit_code)"
+            exit $exit_code
+          fi
           echo "deploy_url=$(node -p "require('./deploy_output.json').deploy_url")" >> "$GITHUB_OUTPUT"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
@@ -110,12 +119,21 @@ jobs:
 
       - name: Deploy Netlify (production, build délégué à Netlify)
         run: |
+          set +e
           npx --yes netlify-cli@21 deploy \
             --build \
             --prod \
             --message "Production deploy ${{ github.sha }}" \
             --json > deploy_output.json
-          cat deploy_output.json
+          exit_code=$?
+          set -e
+          echo "----- Sortie netlify deploy -----"
+          cat deploy_output.json || echo "(fichier vide ou introuvable)"
+          echo "----------------------------------"
+          if [ $exit_code -ne 0 ]; then
+            echo "::error::netlify deploy a échoué (exit $exit_code)"
+            exit $exit_code
+          fi
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
