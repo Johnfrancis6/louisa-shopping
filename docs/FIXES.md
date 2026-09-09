@@ -130,11 +130,14 @@ in `HANDOFF_dependencies.md` task 8:
 
 ---
 
-## 10. Housekeeping 🟢
+## 10. Housekeeping 🟢 → ✅ done
 
-- `CLAUDE.md` still has a trailing "Post-task documentation / SR-PTD" section
-  pointing at a Windows path — delete it.
-- `next-env.d.ts` shows as modified in `git status` (Next regenerates it) — decide
-  to commit the current form or add it to `.gitignore`.
-- `package.json` has an `allowScripts` block (lavamoat convention) with no lavamoat
-  tooling installed — remove it or add the tooling. `HANDOFF_dependencies.md` task 7.
+**Resolved 2026-09-09** (`test/ci`).
+
+- `CLAUDE.md` trailing "Post-task documentation / SR-PTD" section — **deleted**
+  (skill `~/.claude/skills/sr-ptd-skill/` does not exist; path was Windows).
+- `next-env.d.ts` — **kept committed** in its current Next 16 form (the
+  `.next/types/*` reference lines). Next's docs say to commit it; the build no
+  longer rewrites it, so `git status` stays clean. Not gitignored.
+- `package.json` `allowScripts` block — **removed** (no `lavamoat` /
+  `@lavamoat/allow-scripts` anywhere in the repo). `HANDOFF_dependencies.md` task 7.

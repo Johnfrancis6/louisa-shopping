@@ -104,10 +104,6 @@ live tree is `(storefront)` + `admin` + `api`; Better Auth is at
 - `/compte` and `/commander` guard with in-page `redirect()` (PPR: returns a 200 shell
   then redirects in the stream) rather than a middleware 307 like `/admin/*`.
 
-## Post-task documentation (existing instruction — verify before following)
-
-The previous CLAUDE.md required invoking an `sr-ptd-skill` after any file-modifying task and writing a doc to `C:/projects/Skills/Dev_doc_for_skills`. That path is Windows and this is a Linux/WSL checkout, so it likely does not apply here — check whether the skill exists (`~/.claude/skills/sr-ptd-skill/`) before acting on it.
-
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
