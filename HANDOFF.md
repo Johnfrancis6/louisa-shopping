@@ -24,6 +24,10 @@ Redis (Upstash) cart, Netlify.
    re-audit — the audit is done.
 2. `npm run verify` to confirm the tree is still green before changing anything.
 
+**Action-oriented docs** (what to *do*, vs. these files which explain how the code works):
+`docs/START-HERE.md` → `docs/RUN-LOCAL.md` (get it running), `docs/PRE-MERGE-CHECKLIST.md`
+(ship `test/ci` → `main`), `docs/FIXES.md` (known bugs + how to fix each).
+
 ## Remaining before merging `test/ci` → `main`
 
 1. **Rotate the Sentry auth token** (git history `e7d81c7`) — *done per operator, 2026-09*.
