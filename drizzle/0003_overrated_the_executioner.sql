@@ -1,0 +1,1 @@
+ALTER TABLE "review" ADD COLUMN "author_name" text NOT NULL;

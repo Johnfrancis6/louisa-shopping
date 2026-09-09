@@ -629,6 +629,10 @@ export const review = pgTable(
     customerId: text("customer_id")
       .notNull()
       .references(() => customer.id, { onDelete: "cascade" }),
+    // Auteur figé à l'écriture (comme order.itemsSnapshot) : dbAnon n'a pas
+    // accès à `customer` (PII, deny-by-default), donc getApprovedReviews ne
+    // peut pas joindre customer.name.
+    authorName: text("author_name").notNull(),
     rating: integer("rating").notNull(),
     body: text("body"),
     status: reviewStatusEnum("status").notNull().default("pending"),

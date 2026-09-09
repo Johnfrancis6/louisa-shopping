@@ -1,12 +1,13 @@
 import { cacheLife, cacheTag } from 'next/cache'
 import { and, desc, eq } from 'drizzle-orm'
 import { dbAnon } from '@/lib/db/client'
-import { review, customer } from '@/lib/db/schema'
+import { review } from '@/lib/db/schema'
 import type { Review } from '@/types/catalog'
 
 /**
  * Avis APPROUVÉS d'un produit (les seuls exposés à dbAnon — policy
- * `review_public_read_approved`). L'auteur affiché = customer.name.
+ * `review_public_read_approved`). L'auteur affiché = review.authorName,
+ * figé à l'écriture (dbAnon n'a pas accès à `customer`).
  */
 export async function getApprovedReviews(productId: string): Promise<Review[]> {
   'use cache'
@@ -18,14 +19,13 @@ export async function getApprovedReviews(productId: string): Promise<Review[]> {
       .select({
         id: review.id,
         productId: review.productId,
-        author: customer.name,
+        author: review.authorName,
         rating: review.rating,
         comment: review.body,
         status: review.status,
         createdAt: review.createdAt,
       })
       .from(review)
-      .innerJoin(customer, eq(review.customerId, customer.id))
       .where(and(eq(review.productId, productId), eq(review.status, 'approved')))
       .orderBy(desc(review.createdAt))
 

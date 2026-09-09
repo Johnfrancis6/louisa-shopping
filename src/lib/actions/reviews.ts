@@ -40,7 +40,7 @@ export async function createReview(
 
   try {
     const [cust] = await dbAdmin
-      .select({ id: customer.id })
+      .select({ id: customer.id, name: customer.name })
       .from(customer)
       .where(eq(customer.id, userId))
       .limit(1)
@@ -60,6 +60,7 @@ export async function createReview(
     await dbAdmin.insert(review).values({
       productId: input.productId,
       customerId: userId,
+      authorName: cust.name,
       rating,
       body: comment,
       status: 'pending',
