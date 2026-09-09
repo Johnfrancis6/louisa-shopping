@@ -20,9 +20,11 @@ config({ path: ".env.local", override: true });
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const sqlPath = resolve(__dirname, "../supabase/policies.sql");
 
-const url = process.env.DATABASE_URL_ADMIN;
+// Connexion `postgres` (login + DDL) — `service_role`/`anon` sont NOLOGIN chez
+// Supabase et ne peuvent pas ouvrir de connexion directe.
+const url = process.env.DATABASE_URL_MIGRATE ?? process.env.DATABASE_URL_ADMIN;
 if (!url) {
-  console.error("[apply-policies] DATABASE_URL_ADMIN manquante.");
+  console.error("[apply-policies] DATABASE_URL_MIGRATE (ou DATABASE_URL_ADMIN) manquante.");
   process.exit(1);
 }
 
