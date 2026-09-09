@@ -10,13 +10,14 @@ import {
   category,
   product,
   variant,
+  media,
   stockLedger,
   order,
   customer,
   whatsappConfig,
   review,
 } from "./schema";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 // --- Catégories --------------------------------------------------------
 export async function listCategoriesAdmin() {
@@ -38,6 +39,38 @@ export async function listProductsAdmin() {
     .from(product)
     .leftJoin(category, eq(product.categoryId, category.id))
     .orderBy(desc(product.createdAt));
+}
+
+/** Fiche produit pour /admin/products/[id] — infos de base, null si absent. */
+export async function getProductAdmin(id: string) {
+  const [row] = await dbAdmin
+    .select({
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      basePrice: product.basePrice,
+      isActive: product.isActive,
+      categoryName: category.name,
+    })
+    .from(product)
+    .leftJoin(category, eq(product.categoryId, category.id))
+    .where(eq(product.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Images d'un produit, triées par position (0 = principale). */
+export async function listProductMedia(productId: string) {
+  return dbAdmin
+    .select({
+      id: media.id,
+      url: media.url,
+      alt: media.alt,
+      position: media.position,
+    })
+    .from(media)
+    .where(and(eq(media.productId, productId), eq(media.type, "image")))
+    .orderBy(asc(media.position));
 }
 
 // --- Stock -----------------------------------------------------------------

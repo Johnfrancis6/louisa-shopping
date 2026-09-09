@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { connection } from 'next/server'
 import { listProductsAdmin, listCategoriesAdmin } from '@/lib/db/admin'
 import { formatPrice } from '@/lib/utils/format'
@@ -57,8 +58,19 @@ async function ProductsSection() {
             {products.map((p) => (
               <tr key={p.id} className="border-b border-neutral-100 align-top last:border-0">
                 <td className="px-3 py-2">
-                  {p.name}
+                  <Link
+                    href={`/admin/products/${p.id}`}
+                    className="font-medium text-neutral-900 hover:underline"
+                  >
+                    {p.name}
+                  </Link>
                   <div className="text-xs text-neutral-500">{p.slug}</div>
+                  <Link
+                    href={`/admin/products/${p.id}`}
+                    className="text-xs text-neutral-500 hover:underline"
+                  >
+                    Gérer les images
+                  </Link>
                 </td>
                 <td className="px-3 py-2 text-neutral-500">{p.categoryName ?? '—'}</td>
                 <td className="px-3 py-2">{formatPrice(p.basePrice)}</td>

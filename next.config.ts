@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
   // désactiver le pré-rendu global).
  cacheComponents: true,
 
+  // Upload d'images produit via Server Action (gestionnaire de médias admin) —
+  // le défaut 1 Mo est trop bas pour des photos de téléphone.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '8mb',
+    },
+  },
+
   images: {
     // Les médias produits sont servis par Cloudinary avec f_auto,q_auto déjà
     // appliqué à la source (voir src/lib/cloudinary/loader.ts). On bypasse

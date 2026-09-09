@@ -267,6 +267,10 @@ export const media = pgTable(
       .notNull()
       .references(() => product.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
+    // public_id Cloudinary (ex. "louisa-shopping/products/abc123") — permet de
+    // supprimer l'asset distant à la suppression du média. Nullable : les lignes
+    // créées avant cette colonne n'en ont pas (fallback : dérivé de l'URL).
+    publicId: text("public_id"),
     type: mediaTypeEnum("type").notNull(),
     position: integer("position").notNull().default(0),
     alt: text("alt"),
