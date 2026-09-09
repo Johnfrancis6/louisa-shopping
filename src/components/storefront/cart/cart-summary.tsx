@@ -2,7 +2,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight } from '@phosphor-icons/react'
+import { ArrowRight } from 'lucide-react'
 import { formatPrice } from '@/lib/utils/format'
 import type { CartItem } from '@/lib/actions/cart'
 
@@ -44,7 +44,7 @@ export function CartSummary({ items }: { items: CartItem[] }) {
         className="flex items-center justify-center gap-2 w-full py-3.5 rounded-full bg-[var(--color-ls-primary)] text-white font-semibold text-sm hover:opacity-90 active:scale-[0.98] transition-all"
       >
         Passer la commande
-        <ArrowRight size={18} weight="bold" />
+        <ArrowRight size={18} />
       </Link>
     </div>
   )

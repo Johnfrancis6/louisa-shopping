@@ -3,7 +3,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { Minus, Plus, Trash } from '@phosphor-icons/react'
+import { Minus, Plus, Trash2 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils/format'
 import type { CartItem } from '@/lib/actions/cart'
 
@@ -73,7 +73,7 @@ export function CartItemRow({
                 aria-label="Diminuer la quantité"
                 className="w-8 h-8 flex items-center justify-center text-[var(--color-ls-text)] disabled:opacity-30 hover:bg-[var(--color-ls-surface-2)] transition-colors"
               >
-                <Minus size={13} weight="bold" />
+                <Minus size={13} />
               </button>
               <span className="w-7 text-center text-sm font-semibold tabular-nums">
                 {item.qty}
@@ -85,7 +85,7 @@ export function CartItemRow({
                 aria-label="Augmenter la quantité"
                 className="w-8 h-8 flex items-center justify-center text-[var(--color-ls-text)] disabled:opacity-30 hover:bg-[var(--color-ls-surface-2)] transition-colors"
               >
-                <Plus size={13} weight="bold" />
+                <Plus size={13} />
               </button>
             </div>
 
@@ -95,7 +95,7 @@ export function CartItemRow({
               aria-label={`Retirer ${item.productName} du panier`}
               className="w-8 h-8 flex items-center justify-center rounded-full text-[var(--color-ls-text-muted)] hover:text-red-500 hover:bg-red-50 transition-colors"
             >
-              <Trash size={15} />
+              <Trash2 size={15} />
             </button>
           </div>
         </div>

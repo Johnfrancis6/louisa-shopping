@@ -1,7 +1,7 @@
 // src/components/storefront/navbar.tsx
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { MagnifyingGlass, ShoppingBag, User } from '@phosphor-icons/react/dist/ssr'
+import { Search, ShoppingBag, User } from 'lucide-react'
 import { Logo } from "./logo"
 import { CartBadge, CartBadgeSkeleton } from "./cart-badge"
 import { SearchBox } from '@/components/storefront/search/search-box'
@@ -36,7 +36,7 @@ export function Navbar() {
             className="flex h-11 w-11 items-center justify-center rounded-[--radius-ls-btn] text-ls-gray-900 hover:bg-ls-accent-light md:hidden"
             aria-label="Rechercher"
           >
-            <MagnifyingGlass size={22} weight="regular" />
+            <Search size={22} />
           </Link>
 
           <Link
@@ -44,7 +44,7 @@ export function Navbar() {
             className="relative flex h-11 w-11 items-center justify-center rounded-[--radius-ls-btn] text-ls-gray-900 hover:bg-ls-accent-light"
             aria-label="Panier"
           >
-            <ShoppingBag size={22} weight="regular" />
+            <ShoppingBag size={22} />
             <Suspense fallback={<CartBadgeSkeleton />}>
               <CartBadge />
             </Suspense>
@@ -55,7 +55,7 @@ export function Navbar() {
             className="hidden h-11 w-11 items-center justify-center rounded-[--radius-ls-btn] text-ls-gray-900 hover:bg-ls-accent-light md:flex"
             aria-label="Mon compte"
           >
-            <User size={22} weight="regular" />
+            <User size={22} />
           </Link>
         </nav>
       </div>

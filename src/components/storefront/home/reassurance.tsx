@@ -1,10 +1,5 @@
 // src/components/storefront/reassurance.tsx
-import {
-  Truck,
-  ShieldCheck,
-  Wallet,
-  WhatsappLogo,
-} from '@phosphor-icons/react/dist/ssr'
+import { Truck, ShieldCheck, Wallet, MessageCircle } from 'lucide-react'
 
 /**
  * 4 items mock, éditables ensuite par l'utilisateur (demande initiale).
@@ -29,7 +24,7 @@ const ITEMS = [
     description: 'Chaque commande est confirmée avant préparation.',
   },
   {
-    Icon: WhatsappLogo,
+    Icon: MessageCircle,
     title: 'Suivi sur WhatsApp',
     description: 'Une question ? Le vendeur vous répond directement.',
   },
@@ -42,7 +37,7 @@ export function Reassurance() {
         {ITEMS.map(({ Icon, title, description }) => (
           <li key={title} className="flex items-start gap-3">
             <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[--radius-ls-btn] bg-ls-accent-light text-ls-accent">
-              <Icon size={20} weight="regular" />
+              <Icon size={20} />
             </span>
             <div>
               <p className="[font:var(--text-ls-h2)] text-[15px]">{title}</p>

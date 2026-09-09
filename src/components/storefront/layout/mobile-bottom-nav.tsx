@@ -4,11 +4,11 @@
 import { Suspense, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { House, MagnifyingGlass, ShoppingBag, User } from '@phosphor-icons/react/dist/ssr'
+import { House, Search, ShoppingBag, User } from 'lucide-react'
 
 const ITEMS = [
   { href: '/', label: 'Accueil', Icon: House },
-  { href: '/recherche', label: 'Recherche', Icon: MagnifyingGlass },
+  { href: '/recherche', label: 'Recherche', Icon: Search },
   { href: '/panier', label: 'Panier', Icon: ShoppingBag },
   { href: '/compte', label: 'Compte', Icon: User },
 ] as const
@@ -39,7 +39,7 @@ function NavItems({ cartBadge }: { cartBadge?: ReactNode | null }) {
               >
                 <Icon
                   size={20}
-                  weight={isActive ? 'fill' : 'regular'}
+                  fill={isActive ? 'currentColor' : 'none'}
                   className={isActive ? 'text-white' : 'text-ls-gray-500'}
                 />
                 {href === '/panier' && cartBadge}
@@ -68,7 +68,7 @@ function NavItemsFallback() {
         <li key={href}>
           <div className="flex min-h-11 min-w-11 flex-col items-center gap-1 px-3 py-1">
             <span className="flex h-9 w-9 items-center justify-center rounded-full">
-              <Icon size={20} weight="regular" className="text-ls-gray-500" />
+              <Icon size={20} className="text-ls-gray-500" />
             </span>
             <span className="text-[11px] leading-none text-ls-gray-500">{label}</span>
           </div>

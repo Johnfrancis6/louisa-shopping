@@ -1,12 +1,12 @@
 // src/components/storefront/cart/empty-cart.tsx
 import Link from 'next/link'
-import { ShoppingCart } from '@phosphor-icons/react/dist/ssr'
+import { ShoppingCart } from 'lucide-react'
 
 export function EmptyCart() {
   return (
     <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
       <div className="w-20 h-20 rounded-full bg-[var(--color-ls-surface-2)] flex items-center justify-center mb-5">
-        <ShoppingCart size={36} weight="thin" className="text-[var(--color-ls-text-muted)]" />
+        <ShoppingCart size={36} strokeWidth={1} className="text-[var(--color-ls-text-muted)]" />
       </div>
       <h2 className="text-lg font-semibold text-[var(--color-ls-text)] mb-2">
         Ton panier est vide

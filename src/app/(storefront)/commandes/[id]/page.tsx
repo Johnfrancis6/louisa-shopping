@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { WhatsappLogo } from '@phosphor-icons/react/dist/ssr'
+import { MessageCircle } from 'lucide-react'
 import { getSession } from '@/lib/auth-guards'
 import { getOrder } from '@/lib/actions/orders'
 import { getOrderWhatsappUrl } from '@/lib/actions/checkout'
@@ -60,7 +60,7 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
               rel="noopener noreferrer"
               className="mt-3 flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
             >
-              <WhatsappLogo size={20} weight="fill" />
+              <MessageCircle size={20} />
               Confirmer sur WhatsApp
             </a>
           ) : (

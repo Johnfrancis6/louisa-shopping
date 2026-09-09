@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { MagnifyingGlass } from '@phosphor-icons/react'
+import { Search } from 'lucide-react'
 
 export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
   const router = useRouter()
@@ -17,7 +17,7 @@ export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
 
   return (
     <form onSubmit={submit} className="relative w-full">
-      <MagnifyingGlass
+      <Search
         className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ls-gray-500"
         size={18}
       />
