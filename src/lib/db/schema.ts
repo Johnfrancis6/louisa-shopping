@@ -1,19 +1,36 @@
 /**
- * lib/db/schema.ts
+ * src/lib/db/schema.ts
  * Louisa Shopping — Schéma Drizzle (Postgres / Supabase)
  * Référence unique pour toute table applicative. Ne jamais dupliquer ces
  * définitions ailleurs — importer depuis ce module.
+ * Aligné sur contrat-technique-v2.5 (Next.js 16, src/ acté, Zone et
+ * WhatsappConfig désormais entités contractuelles à part entière).
  *
  * Convention (imposée par l'agent DB, premier agent code — voir
  * regles-coordination.md §6) :
+ *  - préfixe `src/` obligatoire (acté contrat v2.5 section A)
  *  - 1 fichier = 1 domaine (ici : tout le schéma, le projet reste petit)
  *  - noms de table : snake_case singulier au niveau SQL, camelCase côté TS
  *  - clé primaire : uuid (default gen_random_uuid())
  *  - tous les montants (prix, frais) sont des entiers en FCFA (pas de
  *    décimales — le FCFA n'a pas de sous-unité courante)
  *  - `createdAt` / `updatedAt` ajoutés systématiquement même quand le
- *    contrat ne les liste pas explicitement (voir tableau "Écarts" dans la
- *    réponse) — additifs, sans impact sur les consommateurs existants.
+ *    contrat ne les liste pas explicitement (voir tableau "Écarts" dans
+ *    db-reference.md) — additifs, sans impact sur les consommateurs existants.
+ *
+ * Autorisation (contrat v2.5 section C — stratégie tranchée) : PAS de pont
+ * RLS auth.uid() ↔ Better Auth. L'autorisation "propriétaire" (un client ne
+ * voit que ses commandes/wishlist) est portée par les Server Actions de
+ * l'agent Logique métier via `dbAdmin` + vérification explicite
+ * (`order.customerId === session.user.id`). RLS reste un filet deny-by-default
+ * — voir supabase/policies.sql.
+ *
+ * Identité (décision actée par l'agent Admin, 2026-09 — src/lib/auth.ts) :
+ * tables Better Auth standard (`user`/`session`/`account`/`verification`),
+ * PAS de fusion avec `customer`. Un hook post-signup crée la ligne
+ * `customer` avec le MÊME id que la ligne `user` — appliqué ici via une
+ * vraie FK `customer.id -> user.id` (`text`, pas `uuid` : l'adapter Drizzle
+ * de Better Auth génère des ids texte, pas des UUID Postgres).
  */
 
 import {
@@ -29,6 +46,7 @@ import {
   uniqueIndex,
   index,
   check,
+  foreignKey,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -45,6 +63,10 @@ export const orderStatusEnum = pgEnum("order_status", [
   "shipped",
   "delivered",
 ]);
+
+// Type union dérivé de l'enum — à importer pour typer les paramètres de
+// Server Actions (ex. `updateOrderStatus(id: string, status: OrderStatus)`).
+export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 
 /** Vitrine uniquement — aucune transaction réelle ne transite par ces valeurs */
 export const paymentMethodEnum = pgEnum("payment_method", [
@@ -100,8 +122,13 @@ export const category = pgTable(
   (t) => ({
     slugUnique: uniqueIndex("category_slug_unique").on(t.slug),
     parentIdx: index("category_parent_id_idx").on(t.parentId),
-    // self-FK ajoutée en migration SQL brute (Drizzle pg-core ne supporte pas
-    // proprement une FK vers la même table dans le constructeur de colonne)
+    // FK auto-référente (hiérarchie de catégories) — via foreignKey() dans le
+    // callback, pas .references() sur la colonne (non supporté pour self-FK).
+    parentFk: foreignKey({
+      columns: [t.parentId],
+      foreignColumns: [t.id],
+      name: "category_parent_id_fk",
+    }).onDelete("set null"),
   })
 );
 
@@ -116,7 +143,9 @@ export const categoryRelations = relations(category, ({ one, many }) => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Zones — table de référence légère (hybride avec Product.delivery_zones)
+// Zone — entité contractuelle depuis v2.5 (section B) : table de référence
+// légère, hybride avec Product.delivery_zones (référencée de manière
+// optionnelle par zone_id dans le jsonb).
 // ---------------------------------------------------------------------------
 
 export const zone = pgTable("zone", {
@@ -285,16 +314,153 @@ export const tutorialContentRelations = relations(
 );
 
 // ---------------------------------------------------------------------------
+// Better Auth — tables imposées par l'adapter Drizzle officiel (noms de
+// table `user`/`session`/`account`/`verification` NON renommables : lus en
+// dur par l'adapter). Ajout additif — décision actée par l'agent Admin,
+// 2026-09 : PAS de fusion avec `customer` ; deux tables séparées reliées par
+// un même id (hook post-signup, voir agent Auth / src/lib/auth.ts).
+// Email + mot de passe, session en base (révocation immédiate côté Admin).
+// ---------------------------------------------------------------------------
+
+export const authUser = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey(), // id généré par Better Auth (pas gen_random_uuid())
+    role: text("role").notNull().default("customer"), // 'customer' | 'admin'
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    // Collecté au signup via Better Auth additionalFields (obligatoire) puis
+    // recopié sur customer.phone (notNull unique) par le hook post-signup.
+    phone: text("phone"),
+    image: text("image"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    emailUnique: uniqueIndex("user_email_unique").on(t.email),
+  })
+);
+
+export const authUserRelations = relations(authUser, ({ one, many }) => ({
+  sessions: many(authSession),
+  accounts: many(authAccount),
+  // Relation 1-1 : la ligne customer est créée par le hook post-signup avec
+  // le MÊME id que authUser.id (voir FK sur customer.id ci-dessous).
+  customerProfile: one(customer, {
+    fields: [authUser.id],
+    references: [customer.id],
+  }),
+}));
+
+export const authSession = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id, { onDelete: "cascade" }),
+    token: text("token").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    tokenUnique: uniqueIndex("session_token_unique").on(t.token),
+    userIdx: index("session_user_id_idx").on(t.userId),
+  })
+);
+
+export const authSessionRelations = relations(authSession, ({ one }) => ({
+  user: one(authUser, {
+    fields: [authSession.userId],
+    references: [authUser.id],
+  }),
+}));
+
+export const authAccount = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id, { onDelete: "cascade" }),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
+    scope: text("scope"),
+    password: text("password"), // hash email/password — stocké ici, jamais sur `user`
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("account_user_id_idx").on(t.userId),
+    // Ajout DB (non fourni par l'agent Admin) : un provider ne peut pas
+    // être lié deux fois au même compte externe — requis par Better Auth.
+    providerAccountUnique: uniqueIndex("account_provider_account_unique").on(
+      t.providerId,
+      t.accountId
+    ),
+  })
+);
+
+export const authAccountRelations = relations(authAccount, ({ one }) => ({
+  user: one(authUser, {
+    fields: [authAccount.userId],
+    references: [authUser.id],
+  }),
+}));
+
+export const authVerification = pgTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
 // Customer
 // ---------------------------------------------------------------------------
 
 export const customer = pgTable(
   "customer",
   {
-    // Hypothèse (à confirmer par l'agent Auth) : customer.id = id utilisateur
-    // Better Auth, pour que auth.uid() (Supabase) matche directement la ligne
-    // customer côté RLS sans table de mapping supplémentaire.
-    id: uuid("id").primaryKey().defaultRandom(),
+    // ÉCART CORRIGÉ (voir db-reference.md) : customer.id passe de uuid à
+    // text, avec une vraie FK vers authUser.id — ce n'est PAS un simple
+    // commentaire de convention comme dans la version précédente. La ligne
+    // customer est créée par le hook post-signup (src/lib/auth.ts) avec le
+    // MÊME id que la ligne user Better Auth correspondante.
+    id: text("id")
+      .primaryKey()
+      .references(() => authUser.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     phone: text("phone").notNull(),
     email: text("email"),
@@ -308,7 +474,11 @@ export const customer = pgTable(
   })
 );
 
-export const customerRelations = relations(customer, ({ many }) => ({
+export const customerRelations = relations(customer, ({ one, many }) => ({
+  authUser: one(authUser, {
+    fields: [customer.id],
+    references: [authUser.id],
+  }),
   orders: many(order),
   wishlistEntries: many(wishlist),
   reviews: many(review),
@@ -322,7 +492,7 @@ export const order = pgTable(
   "order",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    customerId: uuid("customer_id")
+    customerId: text("customer_id")
       .notNull()
       .references(() => customer.id, { onDelete: "restrict" }),
     status: orderStatusEnum("status").notNull().default("pending_whatsapp"),
@@ -443,7 +613,7 @@ export const review = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => product.id, { onDelete: "cascade" }),
-    customerId: uuid("customer_id")
+    customerId: text("customer_id")
       .notNull()
       .references(() => customer.id, { onDelete: "cascade" }),
     rating: integer("rating").notNull(),
@@ -482,7 +652,7 @@ export const wishlist = pgTable(
   "wishlist",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    customerId: uuid("customer_id")
+    customerId: text("customer_id")
       .notNull()
       .references(() => customer.id, { onDelete: "cascade" }),
     productId: uuid("product_id")
@@ -521,17 +691,22 @@ export const wishlistRelations = relations(wishlist, ({ one }) => ({
 }));
 
 // ---------------------------------------------------------------------------
-// WhatsappConfig — brief : "correction du rapport Stack précédent" — un seul
-// commerçant confirmé => configuration GLOBALE (pas un champ par produit).
+// WhatsappConfig — entité contractuelle depuis v2.5 (section B) : config
+// GLOBALE (un seul commerçant confirmé), pas un champ par produit.
+// Champs contrat v2.5 : id (singleton, CHECK id=1), numero, lien_wa.
 // Pattern singleton : une seule ligne (id fixé à 1, contrainte CHECK).
-// Absent du contrat B — ajout signalé, voir "Écart détecté".
+// Modifiable uniquement via dbAdmin / Admin (contrat D).
 // ---------------------------------------------------------------------------
 
 export const whatsappConfig = pgTable(
   "whatsapp_config",
   {
     id: smallint("id").primaryKey().default(1),
-    phoneNumber: text("phone_number").notNull(), // format E.164, ex. +22670000000
+    numero: text("numero").notNull(), // format E.164, ex. +22670000000
+    // Lien wa.me pré-construit (avec ou sans template de message) — permet à
+    // l'Admin de changer le format du lien sans dépendre d'une génération
+    // recalculée côté code applicatif à chaque déploiement.
+    lienWa: text("lien_wa").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -547,4 +722,12 @@ export const whatsappConfig = pgTable(
 // (relationnel) volontairement — ne pas créer de table ici. Si une
 // persistance long terme est requise un jour, elle devra être actée dans
 // 01-architecture/ avant implémentation (règle de conflit §8).
+
+// Alias de compatibilité avec les Server Actions existantes.
+export const categories = category;
+export const products = product;
+export const variants = variant;
+export const orders = order;
+export const orderItems = orderItem;
+export const reviews = review;
 // ---------------------------------------------------------------------------

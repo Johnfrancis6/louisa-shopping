@@ -1,5 +1,5 @@
 /**
- * lib/db/client.ts
+ * src/lib/db/client.ts
  * Deux exports nommés — décision figée contrat v2.3 section E :
  * "dbAnon / dbAdmin — deux exports nommés : RLS Supabase, évite les fuites
  * silencieuses".
@@ -8,23 +8,18 @@
  * client ("use client") ni l'exposer via une route publique brute.
  *
  * - dbAnon  : connexion via le rôle Postgres `anon`/`authenticated` de
- *             Supabase. RLS active. Utilisé par le storefront
- *             (components/storefront/, app/(storefront)/, lib/actions/
- *             côté lecture publique).
+ *             Supabase. RLS active, **lecture publique uniquement**.
  * - dbAdmin : connexion via le rôle `service_role` (clé secrète, jamais
- *             exposée au bundle client). Bypass RLS. Réservé à
- *             app/(admin)/, lib/actions/ (mutations StockLedger, validation
- *             commandes) — voir frontières de responsabilité contrat D.
+ *             exposée au bundle client). Bypass RLS.
  *
- * Note d'implémentation (dépendance Auth — à valider avec l'agent Auth) :
- * pour que les policies RLS scoping "propriétaire" (Order, Wishlist,
- * Customer — voir supabase/policies.sql) fonctionnent avec `auth.uid()`,
- * la session Postgres utilisée par dbAnon doit porter le claim JWT de
- * l'utilisateur connecté (Better Auth) sur chaque requête, via :
- *   select set_config('request.jwt.claims', <jwt_json>, true);
- * exécuté en tout début de transaction. Ce pont Better Auth -> claim
- * Postgres n'est pas du ressort de l'agent DB (lib/actions/, lib/auth/) —
- * signalé ici comme point ouvert, pas résolu silencieusement.
+ * Lazy initialization : requireEnv() et postgres() ne s'exécutent qu'au
+ * premier appel effectif. Évite que Next.js plante au prerender/build
+ * quand les variables d'environnement ne sont pas encore injectées.
+ *
+ * Stratégie d'autorisation (contrat v2.5 section C) : PAS de pont RLS
+ * auth.uid() <-> Better Auth. dbAnon = lecture publique uniquement ; toute
+ * donnée nominative (Customer, Order, Wishlist...) passe par dbAdmin +
+ * vérification explicite de propriété en Server Action.
  */
 
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -41,28 +36,57 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// Connexion "storefront" — rôle Postgres restreint, RLS appliquée.
-const anonConnectionString = requireEnv("DATABASE_URL_ANON");
-// Connexion "admin / logique métier" — rôle service_role, RLS bypass.
-const adminConnectionString = requireEnv("DATABASE_URL_ADMIN");
+// ── Lazy singletons ──────────────────────────────────────────────────────
 
-const anonClient = postgres(anonConnectionString, {
-  prepare: false, // requis avec le pooler Supabase (Supavisor / PgBouncer transaction mode)
-  max: 10,
+let _anonClient: postgres.Sql | null = null;
+let _adminClient: postgres.Sql | null = null;
+let _dbAnon: ReturnType<typeof drizzle<typeof schema>> | null = null;
+let _dbAdmin: ReturnType<typeof drizzle<typeof schema>> | null = null;
+
+function getAnonClient(): postgres.Sql {
+  if (!_anonClient) {
+    _anonClient = postgres(requireEnv("DATABASE_URL_ANON"), {
+      prepare: false, // requis Supavisor / PgBouncer transaction mode
+      max: 10,
+    });
+  }
+  return _anonClient;
+}
+
+function getAdminClient(): postgres.Sql {
+  if (!_adminClient) {
+    _adminClient = postgres(requireEnv("DATABASE_URL_ADMIN"), {
+      prepare: false,
+      max: 10,
+    });
+  }
+  return _adminClient;
+}
+
+// ── Exports nommés (contrat v2.3 §E) ──────────────────────────────────────
+// Proxy : initialise drizzle au premier vrai appel DB (jamais au module-load).
+// IMPORTANT : bind() sur les méthodes — sans ça, `dbAdmin.select()` exécute
+// la méthode avec this = le Proxy (pas l'instance drizzle réelle), ce qui
+// casse en interne (this.session undefined, etc.) dans drizzle-orm.
+
+export const dbAnon = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
+  get(_target, prop) {
+    if (!_dbAnon) _dbAnon = drizzle(getAnonClient(), { schema });
+    const value = (_dbAnon as unknown as Record<string | symbol, unknown>)[prop];
+    return typeof value === "function" ? value.bind(_dbAnon) : value;
+  },
 });
 
-const adminClient = postgres(adminConnectionString, {
-  prepare: false,
-  max: 10,
+export const dbAdmin = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
+  get(_target, prop) {
+    if (!_dbAdmin) _dbAdmin = drizzle(getAdminClient(), { schema });
+    const value = (_dbAdmin as unknown as Record<string | symbol, unknown>)[prop];
+    return typeof value === "function" ? value.bind(_dbAdmin) : value;
+  },
 });
-
-export const dbAnon = drizzle(anonClient, { schema });
-export const dbAdmin = drizzle(adminClient, { schema });
 
 export type DbAnon = typeof dbAnon;
 export type DbAdmin = typeof dbAdmin;
 
-// Types Drizzle partagés (convention imposée — voir regles-coordination §6) :
-// tout agent qui a besoin d'un type de ligne importe depuis ce module,
-// jamais en redéfinissant un type dupliqué localement.
+// Types Drizzle partagés (convention imposée — voir regles-coordination §6)
 export * from "./schema";

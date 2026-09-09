@@ -1,18 +1,44 @@
+-- IDEMPOTENT : ce fichier peut être ré-exécuté (drop policy if exists + enable
+-- rls, qui est no-op si déjà actif). Appliqué via `npm run db:policies`.
+--
+-- ⚠️ PRÉ-REQUIS : pour que ces policies contraignent RÉELLEMENT dbAnon, la
+-- connexion DATABASE_URL_ANON doit se faire avec un rôle Postgres NON
+-- privilégié (`authenticated` ou `anon`), pas `postgres`/owner (qui bypass
+-- RLS). dbAdmin (DATABASE_URL_ADMIN) doit au contraire bypasser RLS
+-- (service_role / owner). À vérifier côté chaînes de connexion Supabase.
+
 -- supabase/policies.sql
 -- Policies RLS — s'appliquent au rôle utilisé par dbAnon (anon / authenticated).
--- dbAdmin (service_role) bypass RLS nativement sur Supabase — aucune policy
--- n'est nécessaire pour ce rôle, PAR CONSTRUCTION Supabase.
+-- dbAdmin (service_role) bypass RLS nativement sur Supabase.
 --
--- Dépendance ouverte (signalée, non résolue ici — cf. lib/db/client.ts) :
--- les policies "propriétaire" (Order, Wishlist, Customer) supposent que
--- auth.uid() reflète l'utilisateur Better Auth courant. Ce pont doit être
--- confirmé par l'agent Auth avant mise en prod.
+-- STRATÉGIE (contrat v2.5, section C — tranchée) :
+-- Pas de pont RLS auth.uid() <-> Better Auth. L'autorisation "propriétaire"
+-- (un client ne voit que SES commandes / sa wishlist / son profil) est
+-- portée par les Server Actions (src/lib/actions/, agent Logique métier),
+-- qui passent par `dbAdmin` et vérifient explicitement la propriété en
+-- TypeScript (ex. `order.customerId === session.user.id`).
+-- RLS ici ne sert QUE de filet de sécurité deny-by-default : dbAnon ne doit
+-- jamais pouvoir lire/écrire une donnée nominative, quoi qu'il arrive côté
+-- application. Aucune policy basée sur auth.uid() dans ce fichier.
+
+-- ---------------------------------------------------------------------------
+-- Better Auth (user/session/account/verification) — AUCUNE policy
+-- anon/authenticated => deny-by-default. Contiennent tokens de session et
+-- hash de mot de passe : ne doivent jamais être lisibles via dbAnon, quoi
+-- qu'il arrive côté application. Better Auth lit/écrit via dbAdmin
+-- (contrat client.ts).
+-- ---------------------------------------------------------------------------
+alter table "user" enable row level security;
+alter table "session" enable row level security;
+alter table "account" enable row level security;
+alter table "verification" enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- Category — lecture publique des catégories visibles uniquement
 -- ---------------------------------------------------------------------------
 alter table "category" enable row level security;
 
+drop policy if exists "category_public_read" on "category";
 create policy "category_public_read"
   on "category" for select
   to anon, authenticated
@@ -23,6 +49,7 @@ create policy "category_public_read"
 -- ---------------------------------------------------------------------------
 alter table "product" enable row level security;
 
+drop policy if exists "product_public_read" on "product";
 create policy "product_public_read"
   on "product" for select
   to anon, authenticated
@@ -33,6 +60,7 @@ create policy "product_public_read"
 -- ---------------------------------------------------------------------------
 alter table "variant" enable row level security;
 
+drop policy if exists "variant_public_read" on "variant";
 create policy "variant_public_read"
   on "variant" for select
   to anon, authenticated
@@ -48,6 +76,7 @@ create policy "variant_public_read"
 -- ---------------------------------------------------------------------------
 alter table "media" enable row level security;
 
+drop policy if exists "media_public_read" on "media";
 create policy "media_public_read"
   on "media" for select
   to anon, authenticated
@@ -63,6 +92,7 @@ create policy "media_public_read"
 -- ---------------------------------------------------------------------------
 alter table "tutorial_content" enable row level security;
 
+drop policy if exists "tutorial_content_public_read" on "tutorial_content";
 create policy "tutorial_content_public_read"
   on "tutorial_content" for select
   to anon, authenticated
@@ -78,117 +108,66 @@ create policy "tutorial_content_public_read"
 -- ---------------------------------------------------------------------------
 alter table "zone" enable row level security;
 
+drop policy if exists "zone_public_read" on "zone";
 create policy "zone_public_read"
   on "zone" for select
   to anon, authenticated
   using (true);
 
 -- ---------------------------------------------------------------------------
--- WhatsappConfig — lecture publique du numéro (nécessaire au lien wa.me),
--- écriture réservée à dbAdmin (aucune policy insert/update pour anon/authenticated)
+-- WhatsappConfig — lecture publique (numero / lien_wa nécessaires au bouton
+-- WhatsApp flottant + redirect checkout), écriture réservée à dbAdmin.
 -- ---------------------------------------------------------------------------
 alter table "whatsapp_config" enable row level security;
 
+drop policy if exists "whatsapp_config_public_read" on "whatsapp_config";
 create policy "whatsapp_config_public_read"
   on "whatsapp_config" for select
   to anon, authenticated
   using (true);
 
 -- ---------------------------------------------------------------------------
--- Customer — un client ne voit / modifie que sa propre ligne
--- ---------------------------------------------------------------------------
-alter table "customer" enable row level security;
-
-create policy "customer_self_select"
-  on "customer" for select
-  to authenticated
-  using (id = auth.uid());
-
-create policy "customer_self_update"
-  on "customer" for update
-  to authenticated
-  using (id = auth.uid())
-  with check (id = auth.uid());
-
-create policy "customer_self_insert"
-  on "customer" for insert
-  to authenticated
-  with check (id = auth.uid());
-
--- ---------------------------------------------------------------------------
--- Order — un client ne voit que ses propres commandes.
--- Aucune policy insert/update pour anon/authenticated : la création de
--- commande passe par lib/actions/ (Logique métier), qui écrit via dbAdmin
--- après validation serveur (montants, stock, etc.) — jamais en écriture
--- directe cliente, même authentifiée.
--- ---------------------------------------------------------------------------
-alter table "order" enable row level security;
-
-create policy "order_owner_select"
-  on "order" for select
-  to authenticated
-  using (customer_id = auth.uid());
-
--- ---------------------------------------------------------------------------
--- OrderItem — lecture si la commande parente appartient au client
--- ---------------------------------------------------------------------------
-alter table "order_item" enable row level security;
-
-create policy "order_item_owner_select"
-  on "order_item" for select
-  to authenticated
-  using (
-    exists (
-      select 1 from "order" o
-      where o.id = "order_item".order_id and o.customer_id = auth.uid()
-    )
-  );
-
--- ---------------------------------------------------------------------------
--- StockLedger — aucune policy anon/authenticated => accès refusé par défaut.
--- Réservé à dbAdmin (Logique métier / Admin), conformément au contrat C
--- ("toutes les mutations StockLedger" = périmètre Logique métier).
--- ---------------------------------------------------------------------------
-alter table "stock_ledger" enable row level security;
-
--- ---------------------------------------------------------------------------
--- Review — lecture publique des avis approuvés ; écriture par le client
--- authentifié pour ses propres avis (statut forcé à 'pending' par défaut,
--- la modération vers 'approved' est réservée à dbAdmin/Admin)
+-- Review — SEULE lecture publique des avis approuvés est exposée à dbAnon.
+-- L'écriture d'un avis (par un client authentifié) passe par une Server
+-- Action -> dbAdmin, qui vérifie la propriété et force status='pending' ;
+-- aucune policy insert/update ici pour anon/authenticated.
 -- ---------------------------------------------------------------------------
 alter table "review" enable row level security;
 
+drop policy if exists "review_public_read_approved" on "review";
 create policy "review_public_read_approved"
   on "review" for select
   to anon, authenticated
   using (status = 'approved');
 
-create policy "review_owner_read_own"
-  on "review" for select
-  to authenticated
-  using (customer_id = auth.uid());
-
-create policy "review_owner_insert"
-  on "review" for insert
-  to authenticated
-  with check (customer_id = auth.uid() and status = 'pending');
+-- ---------------------------------------------------------------------------
+-- Customer — AUCUNE policy anon/authenticated => deny-by-default.
+-- Toute lecture/écriture (profil, adresse) passe par une Server Action ->
+-- dbAdmin avec vérification explicite `customer.id === session.user.id`.
+-- ---------------------------------------------------------------------------
+alter table "customer" enable row level security;
 
 -- ---------------------------------------------------------------------------
--- Wishlist — CRUD limité à ses propres lignes
+-- Order — AUCUNE policy anon/authenticated => deny-by-default.
+-- /commandes/[id] et l'historique client sont servis par une Server Action
+-- (dbAdmin) qui vérifie `order.customerId === session.user.id` avant de
+-- renvoyer la ligne. Pas d'accès direct dbAnon, même en lecture seule.
+-- ---------------------------------------------------------------------------
+alter table "order" enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- OrderItem — idem Order, deny-by-default.
+-- ---------------------------------------------------------------------------
+alter table "order_item" enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- StockLedger — deny-by-default. Réservé à dbAdmin (Logique métier / Admin),
+-- conformément au contrat D ("toutes les mutations StockLedger").
+-- ---------------------------------------------------------------------------
+alter table "stock_ledger" enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Wishlist — deny-by-default. Lecture/écriture via Server Action -> dbAdmin
+-- avec vérification `wishlist.customerId === session.user.id`.
 -- ---------------------------------------------------------------------------
 alter table "wishlist" enable row level security;
-
-create policy "wishlist_owner_select"
-  on "wishlist" for select
-  to authenticated
-  using (customer_id = auth.uid());
-
-create policy "wishlist_owner_insert"
-  on "wishlist" for insert
-  to authenticated
-  with check (customer_id = auth.uid());
-
-create policy "wishlist_owner_delete"
-  on "wishlist" for delete
-  to authenticated
-  using (customer_id = auth.uid());

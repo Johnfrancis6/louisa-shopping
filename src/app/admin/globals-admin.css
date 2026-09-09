@@ -1,0 +1,29 @@
+/* src/app/(admin)/globals-admin.css
+   Tokens identiques storefront + overrides admin — jamais de redéclaration
+   des tokens de base ici, seulement les ajouts admin-only. */
+
+:root {
+  --ls-admin-bg: #F3F4F6;
+  --ls-admin-sidebar-bg: #111827;
+  --ls-admin-sidebar-text: #FFFFFF;
+}
+
+/* Densité admin : -25% de padding interne, appliqué en classe utilitaire
+   plutôt qu'en redéclarant les tokens d'espacement (règle explicite). */
+.admin-dense {
+  --ls-space-1: 3px;
+  --ls-space-2: 6px;
+  --ls-space-3: 9px;
+  --ls-space-4: 12px;
+  --ls-space-6: 18px;
+  --ls-space-8: 24px;
+  --ls-space-12: 36px;
+}
+
+.admin-dense table tr {
+  height: 40px; /* hauteur de ligne imposée §8 */
+}
+
+body.admin {
+  background: var(--ls-admin-bg);
+}
