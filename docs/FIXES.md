@@ -59,7 +59,7 @@ history is dead once rotated; a full `git filter-repo` scrub is optional.
 
 ---
 
-## 4. Lighthouse CI scores an empty catalog 🟡
+## 4. Lighthouse CI scores an empty catalog 🟡 → ✅ tooling done, needs a run
 
 **Symptom.** The PR's blocking `lighthouse-preview` job runs against a storefront
 with 0 products — layout/LCP may not reflect reality, and could pass or fail
@@ -67,11 +67,15 @@ misleadingly.
 
 **Where.** `src/lib/db/seed.ts` seeds categories/zones/whatsapp_config only.
 
-**Fix.** Add 2–3 demo products + variants + `media` rows (real Cloudinary URLs)
-to `seed.ts`, **or** insert them manually on the preview DB before opening the PR.
-`HANDOFF_backend.md` task 6.
+**Fix (done 2026-09-09).** New opt-in script `src/lib/db/seed-demo.ts` —
+`npm run db:seed:demo`. Idempotent (purges its own `demo-*` / `@louisa-demo.test`
+rows first, safe to re-run). Populates: 15 products / 33 variants / 28 Cloudinary
+sample images / 3 tutorials, 3 customers (pw `LouisaDemo1!`), 6 orders (one per
+`§F` status, `stock_ledger` + `stock_qty` consistent), 6 reviews (3 approved),
+4 wishlist rows. Kept separate from `seed.ts` so the base seed stays minimal.
 
-**Effort:** ~20 min.
+**Still to do before the PR:** run `npm run db:seed:demo` against the **preview
+DB** (needs `DATABASE_URL_MIGRATE` for that DB). Local DB is already seeded.
 
 ---
 

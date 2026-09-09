@@ -16,8 +16,8 @@ Everything else depends on these.
 
 ## Stage 1 — Decide on open issues `(you + dev)`
 
-- [ ] **Reviews bug** (`FIXES.md` #1) — fix now (denormalize `review.authorName`, ~30 min) or file it and merge without it. Reviews fail gracefully (render empty), so deferring is defensible.
-- [ ] **Demo products for Lighthouse** (`FIXES.md` #4) — the PR's Lighthouse run scores an empty catalog. Either add 2–3 demo products to `seed.ts`, or seed them manually on the preview DB before the PR, or accept the risk.
+- [x] **Reviews bug** (`FIXES.md` #1) — fixed 2026-09-09: `review.authorName` denormalized (migration `0003`), `getApprovedReviews()` no longer joins `customer`.
+- [ ] **Demo products for Lighthouse** (`FIXES.md` #4) — script `npm run db:seed:demo` is done and run on the local DB. **Run it against the preview DB before opening the PR** (needs that DB's `DATABASE_URL_MIGRATE`).
 
 ## Stage 2 — Authenticated smoke test `(you, browser)`
 

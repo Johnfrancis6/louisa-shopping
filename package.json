@@ -16,6 +16,7 @@
     "db:deploy": "drizzle-kit migrate && node scripts/apply-policies.mjs",
     "db:promote-admin": "node scripts/promote-admin.mjs",
     "db:seed": "tsx src/lib/db/seed.ts",
+    "db:seed:demo": "tsx src/lib/db/seed-demo.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

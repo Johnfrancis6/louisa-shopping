@@ -76,10 +76,21 @@ npm run db:promote-admin -- you@example.com
 
 Admin back-office: http://localhost:3000/admin
 
-## 6. Add a product to see the storefront populated
+## 6. Add data to see the storefront populated
 
-The seed creates categories but no products. Either build one through
-`/admin/products` + `/admin/products/[id]` (media manager), or insert directly:
+`npm run db:seed` creates categories but no products. Fastest path — the demo seed:
+
+```bash
+npm run db:seed:demo    # 15 products, 33 variants, 3 customers, 6 orders, 6 reviews, wishlist
+```
+
+Idempotent (purges its own `demo-*` / `@louisa-demo.test` rows first). Demo
+customer logins: `aicha.demo@louisa-demo.test` / `moussa.demo@…` / `fatou.demo@…`,
+password `LouisaDemo1!`. One order sits in each `§F` status for the admin
+lifecycle screens.
+
+Or build a product by hand through `/admin/products` + `/admin/products/[id]`
+(media manager), or insert directly:
 
 ```sql
 -- as postgres (DATABASE_URL_MIGRATE) or app_service
@@ -101,6 +112,7 @@ npm run start              # serve the production build
 npm run db:generate        # create a migration from schema.ts changes
 npm run db:studio          # drizzle-kit studio (browse the DB)
 npm run db:policies        # re-apply RLS policies + GRANTs only
+npm run db:seed:demo       # demo catalog + customers + orders + reviews (idempotent)
 ```
 
 ## Troubleshooting

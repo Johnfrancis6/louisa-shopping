@@ -13,7 +13,7 @@ code works*; these `docs/` files tell you *what to do next*.
 
 - **Branch:** `test/ci` @ `f655083`, ~20 commits ahead of `main` (nothing on `main` yet). Local is 1 commit ahead of `origin/test/ci`.
 - **`npm run verify` (lint + typecheck + build):** green.
-- **Database:** live. Supabase project `yhgnuilrgbudjtetlqur`. 3 migrations applied, `db:seed` run (10 categories, 1 zone, 1 whatsapp_config). No products, no users.
+- **Database:** live. Supabase project `yhgnuilrgbudjtetlqur`. 4 migrations applied, `db:seed` run (10 categories, 1 zone, 1 whatsapp_config). `db:seed:demo` also run against this DB — 15 demo products, 3 demo customers, 6 orders, 6 reviews (all `demo-*` / `@louisa-demo.test`, purgeable by re-running the script or dropping those rows). The **preview** DB still needs `db:seed:demo` before the PR (`FIXES.md` #4).
 - **DB roles:** `dbAnon` → `app_anon`, `dbAdmin` → `app_service` (both LOGIN roles; Supabase `anon`/`service_role` are NOLOGIN). Scripts use `postgres` via `DATABASE_URL_MIGRATE`. Passwords are in `.env.local`. See memory `supabase-nologin-roles.md` and `.env.example`.
 - **Verified working:** storefront renders real products + Cloudinary images; auth signup → `user`/`session`/`account`/`customer`; all admin pages + media manager page; RLS deny-by-default + row filtering; Cloudinary upload/destroy; `db:seed` / `db:promote-admin` / `db:deploy`.
 - **Not yet verified:** interactive flows (cart → checkout wizard → order; media manager reorder/primary/delete buttons; order lifecycle + stock ledger). Needs a browser — see `PRE-MERGE-CHECKLIST.md` step 3.
