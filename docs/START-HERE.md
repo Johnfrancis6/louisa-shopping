@@ -17,7 +17,7 @@ code works*; these `docs/` files tell you *what to do next*.
 - **DB roles:** `dbAnon` → `app_anon`, `dbAdmin` → `app_service` (both LOGIN roles; Supabase `anon`/`service_role` are NOLOGIN). Scripts use `postgres` via `DATABASE_URL_MIGRATE`. Passwords are in `.env.local`. See memory `supabase-nologin-roles.md` and `.env.example`.
 - **Verified working:** storefront renders real products + Cloudinary images; auth signup → `user`/`session`/`account`/`customer`; all admin pages + media manager page; RLS deny-by-default + row filtering; Cloudinary upload/destroy; `db:seed` / `db:promote-admin` / `db:deploy`.
 - **Not yet verified:** interactive flows (cart → checkout wizard → order; media manager reorder/primary/delete buttons; order lifecycle + stock ledger). Needs a browser — see `PRE-MERGE-CHECKLIST.md` step 3.
-- **Known bug:** product reviews don't display (`dbAnon` can't join `customer`). See `FIXES.md` #1.
+- ~~**Known bug:** product reviews don't display (`dbAnon` can't join `customer`).~~ Fixed 2026-09-09 — `FIXES.md` #1.
 
 ## The 30-second orientation
 

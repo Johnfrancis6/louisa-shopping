@@ -6,7 +6,13 @@ Legend for "blocks merge": 🔴 yes · 🟡 your call · 🟢 no (post-merge bac
 
 ---
 
-## 1. Product reviews never display 🟡
+## 1. Product reviews never display 🟡 → ✅ done
+
+**Resolved 2026-09-09** (commit `da52ed2`). Denormalized `review.authorName`
+(migration `0003`, applied to the live DB); `createReview()` freezes the name at
+write time, `getApprovedReviews()` no longer joins `customer`. Original notes
+below for context.
+
 
 **Symptom.** Product pages show no reviews. Dev log:
 `[data/reviews] getApprovedReviews ... permission denied for table customer`.
