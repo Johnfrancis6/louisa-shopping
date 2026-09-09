@@ -10,10 +10,9 @@ import { EmptyCart } from './empty-cart'
 
 interface CartClientProps {
   initialItems: CartItem[]
-  whatsappNumber: string | null
 }
 
-export function CartClient({ initialItems, whatsappNumber }: CartClientProps) {
+export function CartClient({ initialItems }: CartClientProps) {
   const [items, setItems] = useState<CartItem[]>(initialItems)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
@@ -56,7 +55,7 @@ export function CartClient({ initialItems, whatsappNumber }: CartClientProps) {
       </div>
 
       <div className="lg:w-80 lg:sticky lg:top-24">
-        <CartSummary items={items} whatsappNumber={whatsappNumber} />
+        <CartSummary items={items} />
       </div>
     </div>
   )

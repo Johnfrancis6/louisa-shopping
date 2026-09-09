@@ -1,34 +1,12 @@
 // src/components/storefront/cart/cart-summary.tsx
 'use client'
 
-import { WhatsappLogo } from '@phosphor-icons/react'
+import Link from 'next/link'
+import { ArrowRight } from '@phosphor-icons/react'
 import { formatPrice } from '@/lib/utils/format'
 import type { CartItem } from '@/lib/actions/cart'
 
-interface CartSummaryProps {
-  items: CartItem[]
-  /** Numéro E.164 issu de WhatsappConfig (DB). null = non configuré. */
-  whatsappNumber: string | null
-}
-
-function buildWaUrl(items: CartItem[], total: number, number: string): string {
-  const lines = items.map((i) => {
-    const label = [i.size, i.color].filter(Boolean).join(' / ')
-    return `• ${i.productName}${label ? ` (${label})` : ''} ×${i.qty} — ${formatPrice(i.unitPrice * i.qty)}`
-  })
-  const message = [
-    '🛍️ Bonjour, je souhaite passer commande :',
-    '',
-    ...lines,
-    '',
-    `Total : ${formatPrice(total)}`,
-    '',
-    'Merci de confirmer la disponibilité et les frais de livraison.',
-  ].join('\n')
-  return `https://wa.me/${number.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`
-}
-
-export function CartSummary({ items, whatsappNumber }: CartSummaryProps) {
+export function CartSummary({ items }: { items: CartItem[] }) {
   const total = items.reduce((sum, i) => sum + i.unitPrice * i.qty, 0)
 
   return (
@@ -61,21 +39,13 @@ export function CartSummary({ items, whatsappNumber }: CartSummaryProps) {
         Les frais de livraison seront confirmés par le vendeur via WhatsApp.
       </p>
 
-      {whatsappNumber ? (
-        <a
-          href={buildWaUrl(items, total, whatsappNumber)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-full bg-[#25D366] text-white font-semibold text-sm hover:opacity-90 active:scale-[0.98] transition-all"
-        >
-          <WhatsappLogo size={20} weight="fill" />
-          Commander via WhatsApp
-        </a>
-      ) : (
-        <p className="text-xs text-[var(--color-ls-danger,#DC2626)] text-center">
-          Commande WhatsApp indisponible — numéro non configuré.
-        </p>
-      )}
+      <Link
+        href="/commander"
+        className="flex items-center justify-center gap-2 w-full py-3.5 rounded-full bg-[var(--color-ls-primary)] text-white font-semibold text-sm hover:opacity-90 active:scale-[0.98] transition-all"
+      >
+        Passer la commande
+        <ArrowRight size={18} weight="bold" />
+      </Link>
     </div>
   )
 }

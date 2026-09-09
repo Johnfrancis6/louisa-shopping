@@ -14,6 +14,7 @@ import {
   order,
   customer,
   whatsappConfig,
+  review,
 } from "./schema";
 import { desc, eq } from "drizzle-orm";
 
@@ -80,6 +81,26 @@ export async function listOrdersAdmin() {
     .from(order)
     .leftJoin(customer, eq(order.customerId, customer.id))
     .orderBy(desc(order.createdAt));
+}
+
+// --- Avis (modération) -------------------------------------------------
+export async function listReviewsAdmin(status?: "pending" | "approved" | "rejected") {
+  return dbAdmin
+    .select({
+      id: review.id,
+      productId: review.productId,
+      productName: product.name,
+      customerName: customer.name,
+      rating: review.rating,
+      body: review.body,
+      status: review.status,
+      createdAt: review.createdAt,
+    })
+    .from(review)
+    .leftJoin(product, eq(review.productId, product.id))
+    .leftJoin(customer, eq(review.customerId, customer.id))
+    .where(status ? eq(review.status, status) : undefined)
+    .orderBy(desc(review.createdAt));
 }
 
 // --- WhatsApp config (singleton) ----------------------------------------

@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from 'next/cache'
-import { and, asc, desc, eq, inArray } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray } from 'drizzle-orm'
 import { dbAnon } from '@/lib/db/client'
 import {
   products,
@@ -56,6 +56,100 @@ function matchesFilters(product: Product, filters: CatalogFilters): boolean {
   })
 }
 
+type ProductHead = {
+  id: string
+  slug: string
+  name: string
+  categoryId: string
+  basePrice: number
+  hasTutorial: boolean
+}
+
+/** Charge variantes + première image pour une liste de produits déjà filtrée. */
+async function hydrate(heads: ProductHead[]): Promise<Product[]> {
+  if (heads.length === 0) return []
+  const ids = heads.map((p) => p.id)
+
+  const [variantRows, imageRows] = await Promise.all([
+    dbAnon
+      .select({
+        id: variants.id,
+        productId: variants.productId,
+        sku: variants.sku,
+        size: variants.size,
+        color: variants.color,
+        stockQty: variants.stockQty,
+        priceOverride: variants.priceOverride,
+      })
+      .from(variants)
+      .where(inArray(variants.productId, ids)),
+    dbAnon
+      .select({ productId: media.productId, url: media.url })
+      .from(media)
+      .where(and(inArray(media.productId, ids), eq(media.type, 'image')))
+      .orderBy(asc(media.position)),
+  ])
+
+  const firstImage = new Map<string, string>()
+  for (const img of imageRows) {
+    if (!firstImage.has(img.productId)) firstImage.set(img.productId, img.url)
+  }
+  const byProduct = new Map<string, VariantRow[]>()
+  for (const v of variantRows) {
+    const list = byProduct.get(v.productId) ?? []
+    list.push(v)
+    byProduct.set(v.productId, list)
+  }
+
+  return heads
+    .map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      name: p.name,
+      categoryId: p.categoryId,
+      isActive: true,
+      hasTutorial: p.hasTutorial,
+      variants: (byProduct.get(p.id) ?? []).map((v) =>
+        toVariant(v, p.basePrice, firstImage.get(p.id) ?? null),
+      ),
+    }))
+    .filter((p) => p.variants.length > 0)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recherche
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function searchProducts(query: string): Promise<Product[]> {
+  'use cache'
+  cacheLife('minutes')
+  cacheTag('products', 'stock')
+
+  const q = query.trim()
+  if (q.length < 2) return []
+
+  try {
+    const heads = await dbAnon
+      .select({
+        id: products.id,
+        slug: products.slug,
+        name: products.name,
+        categoryId: products.categoryId,
+        basePrice: products.basePrice,
+        hasTutorial: products.hasTutorial,
+      })
+      .from(products)
+      .where(and(eq(products.isActive, true), ilike(products.name, `%${q}%`)))
+      .orderBy(desc(products.createdAt))
+      .limit(40)
+
+    return hydrate(heads)
+  } catch (err) {
+    console.error('[data/products] searchProducts', err)
+    return []
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Catalogue (liste paginée)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,7 +170,7 @@ export async function getProducts(
   cacheTag('products', 'stock')
 
   try {
-    const productRows = await dbAnon
+    const heads = await dbAnon
       .select({
         id: products.id,
         slug: products.slug,
@@ -96,59 +190,7 @@ export async function getProducts(
       )
       .orderBy(desc(products.createdAt))
 
-    if (productRows.length === 0) return { items: [], nextCursor: null }
-
-    const productIds = productRows.map((p) => p.id)
-
-    const [variantRows, imageRows] = await Promise.all([
-      dbAnon
-        .select({
-          id: variants.id,
-          productId: variants.productId,
-          sku: variants.sku,
-          size: variants.size,
-          color: variants.color,
-          stockQty: variants.stockQty,
-          priceOverride: variants.priceOverride,
-        })
-        .from(variants)
-        .where(inArray(variants.productId, productIds)),
-      dbAnon
-        .select({ productId: media.productId, url: media.url })
-        .from(media)
-        .where(and(inArray(media.productId, productIds), eq(media.type, 'image')))
-        .orderBy(asc(media.position)),
-    ])
-
-    const firstImage = new Map<string, string>()
-    for (const img of imageRows) {
-      if (!firstImage.has(img.productId)) firstImage.set(img.productId, img.url)
-    }
-
-    const variantsByProduct = new Map<string, VariantRow[]>()
-    for (const v of variantRows) {
-      const list = variantsByProduct.get(v.productId) ?? []
-      list.push(v)
-      variantsByProduct.set(v.productId, list)
-    }
-
-    const all: Product[] = productRows
-      .map((p) => {
-        const image = firstImage.get(p.id) ?? null
-        const vs = (variantsByProduct.get(p.id) ?? []).map((v) =>
-          toVariant(v, p.basePrice, image),
-        )
-        return {
-          id: p.id,
-          slug: p.slug,
-          name: p.name,
-          categoryId: p.categoryId,
-          isActive: true,
-          hasTutorial: p.hasTutorial,
-          variants: vs,
-        }
-      })
-      .filter((p) => p.variants.length > 0 && matchesFilters(p, filters))
+    const all = (await hydrate(heads)).filter((p) => matchesFilters(p, filters))
 
     const start = cursor ? Math.max(0, Number(cursor) || 0) : 0
     const items = all.slice(start, start + PAGE_SIZE)

@@ -15,11 +15,11 @@
 'use server'
 
 import { dbAdmin, dbAnon } from '@/lib/db/client'
-import { orders, orderItems, variants, products } from '@/lib/db/schema'
+import { orders, orderItems, variants, products, customer } from '@/lib/db/schema'
 import { and, eq, inArray } from 'drizzle-orm'
-import { v4 as uuidv4 } from 'uuid'
 import { buildWhatsappUrl } from '@/lib/whatsapp'
 import { getUserId } from '@/lib/auth-guards'
+import { readSnapshot } from '@/lib/orders-display'
 import { getCart, clearCart } from './cart'
 
 // ─────────────────────────────────────────────
@@ -119,7 +119,7 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
   const total = items.reduce((sum, l) => sum + l.unitPrice * l.qty, 0)
 
   // ── 4. Transaction Order + OrderItems ─────────
-  const orderId = uuidv4()
+  const orderId = crypto.randomUUID()
   try {
     await dbAdmin.transaction(async (tx) => {
       await tx.insert(orders).values({
@@ -143,7 +143,7 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
 
       await tx.insert(orderItems).values(
         items.map((l) => ({
-          id:        uuidv4(),
+          id:        crypto.randomUUID(),
           orderId,
           variantId: l.variantId,
           qty:       l.qty,
@@ -184,5 +184,51 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
       orderId,
       warning: 'Numéro WhatsApp non configuré — contactez l\'administrateur.',
     }
+  }
+}
+
+/**
+ * Reconstruit le lien wa.me de confirmation pour une commande donnée
+ * (page /commandes/[id]). Vérifie la propriété. null si config WA manquante.
+ */
+export async function getOrderWhatsappUrl(orderId: string): Promise<string | null> {
+  const userId = await getUserId()
+  if (!userId) return null
+
+  try {
+    const [row] = await dbAdmin
+      .select({
+        id: orders.id,
+        customerId: orders.customerId,
+        total: orders.total,
+        paymentMethod: orders.paymentMethod,
+        itemsSnapshot: orders.itemsSnapshot,
+        customerName: customer.name,
+      })
+      .from(orders)
+      .innerJoin(customer, eq(orders.customerId, customer.id))
+      .where(and(eq(orders.id, orderId), eq(orders.customerId, userId)))
+      .limit(1)
+
+    if (!row) return null
+
+    return await buildWhatsappUrl({
+      orderId: row.id,
+      orderUrl: `${BASE_URL}/commandes/${row.id}`,
+      customerName: row.customerName,
+      paymentMethod: row.paymentMethod as CheckoutInput['paymentMethod'],
+      total: row.total,
+      items: readSnapshot(row.itemsSnapshot).map((it) => ({
+        productName: it.product_name,
+        sku: it.sku,
+        size: it.size,
+        color: it.color,
+        qty: it.qty,
+        unitPrice: it.unit_price_at_order,
+      })),
+    })
+  } catch (err) {
+    console.error('[checkout] getOrderWhatsappUrl', err)
+    return null
   }
 }

@@ -10,7 +10,6 @@
 
 import { Redis } from '@upstash/redis'
 import { cookies } from 'next/headers'
-import { v4 as uuidv4 } from 'uuid'
 import { dbAnon } from '@/lib/db/client'
 import { variants, products, media } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
@@ -65,7 +64,7 @@ async function getOrCreateSessionId(): Promise<string> {
   let sessionId = cookieStore.get(CART_COOKIE)?.value
 
   if (!sessionId) {
-    sessionId = uuidv4()
+    sessionId = crypto.randomUUID()
     cookieStore.set(CART_COOKIE, sessionId, {
       httpOnly: true,
       secure:   process.env.NODE_ENV === 'production',

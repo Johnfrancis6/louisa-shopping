@@ -1,7 +1,6 @@
 // src/app/(storefront)/panier/page.tsx
 import { Suspense } from 'react'
 import { peekCart } from '@/lib/actions/cart'
-import { getWhatsappConfig } from '@/lib/data/whatsapp-config'
 import { CartClient } from '@/components/storefront/cart/cart-client'
 import PanierLoading from './loading'
 
@@ -19,12 +18,6 @@ export default function PanierPage() {
 }
 
 async function CartContents() {
-  const [cart, waConfig] = await Promise.all([peekCart(), getWhatsappConfig()])
-
-  return (
-    <CartClient
-      initialItems={cart.items}
-      whatsappNumber={waConfig?.numero ?? null}
-    />
-  )
+  const cart = await peekCart()
+  return <CartClient initialItems={cart.items} />
 }

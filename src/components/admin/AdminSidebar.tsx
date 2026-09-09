@@ -5,24 +5,31 @@ const NAV = [
   { href: "/admin/products", label: "Catalogue" },
   { href: "/admin/categories", label: "Catégories" },
   { href: "/admin/stock", label: "Stock" },
+  { href: "/admin/reviews", label: "Avis" },
   { href: "/admin/whatsapp", label: "WhatsApp" },
 ] as const;
 
 export function AdminSidebar() {
   return (
-    <nav
-      className="admin-dense flex flex-col gap-[var(--ls-space-2)] p-[var(--ls-space-4)] w-56 shrink-0"
-      style={{ background: "var(--ls-admin-sidebar-bg)", color: "var(--ls-admin-sidebar-text)" }}
-    >
+    <nav className="flex w-52 shrink-0 flex-col gap-1 bg-neutral-900 p-4 text-white">
+      <Link href="/admin" className="mb-2 px-3 text-sm font-semibold uppercase tracking-wide text-white/60">
+        Louisa · Admin
+      </Link>
       {NAV.map((item) => (
         <Link
           key={item.href}
           href={item.href}
-          className="rounded px-[var(--ls-space-3)] py-[var(--ls-space-2)] text-[15px] hover:bg-white/10"
+          className="rounded px-3 py-2 text-[15px] hover:bg-white/10"
         >
           {item.label}
         </Link>
       ))}
+      <Link
+        href="/"
+        className="mt-auto rounded px-3 py-2 text-sm text-white/60 hover:bg-white/10"
+      >
+        ← Retour au site
+      </Link>
     </nav>
   );
 }

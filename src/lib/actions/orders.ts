@@ -27,6 +27,7 @@ import { revalidateTag }  from 'next/cache'
 import { dbAdmin }        from '@/lib/db/client'
 import type { OrderStatus } from '@/lib/db/schema'
 import { getAdminUserId, getUserId } from '@/lib/auth-guards'
+import { canTransition } from '@/lib/order-transitions'
 import {
   orders,
   orderItems,
@@ -34,7 +35,6 @@ import {
   variants,
 }                         from '@/lib/db/schema'
 import { eq, and, gte, sql } from 'drizzle-orm'
-import { v4 as uuidv4 }  from 'uuid'
 
 // ─────────────────────────────────────────────
 // Types
@@ -48,7 +48,6 @@ export interface ActionResult {
 }
 
 type TransitionHandler = () => Promise<ActionResult>
-type TransitionMatrix = Partial<Record<OrderStatus, Partial<Record<OrderStatus, TransitionHandler>>>>
 
 // ─────────────────────────────────────────────
 // Helpers authorization
@@ -126,7 +125,7 @@ async function applyStockDelta(
     }
 
     await tx.insert(stockLedger).values({
-      id:        uuidv4(),
+      id:        crypto.randomUUID(),
       variantId: item.variantId,
       delta,
       reason,
@@ -460,13 +459,17 @@ export async function returnShippedOrder(orderId: string): Promise<ActionResult>
 // ─────────────────────────────────────────────
 
 /**
- * Dispatcher unique pour le dashboard Admin.
- * Valide la transition avant de router vers la bonne action.
+ * Dispatcher unique pour le dashboard Admin. Les RÈGLES de transition vivent
+ * dans lib/order-transitions.ts (source unique) ; ici on ne fait que router
+ * vers le handler qui porte les effets (stock, revalidation).
  */
 export async function transitionOrder(
   orderId: string,
   targetStatus: OrderStatus,
 ): Promise<ActionResult> {
+  const authResult = await requireAdmin()
+  if (isActionResult(authResult)) return authResult
+
   const [order] = await dbAdmin
     .select({ status: orders.status })
     .from(orders)
@@ -476,33 +479,23 @@ export async function transitionOrder(
   if (!order) return { success: false, error: 'Commande introuvable' }
 
   const from = order.status as OrderStatus
-
-  // Matrice des transitions autorisées
-  const transitions: TransitionMatrix = {
-    pending_whatsapp: {
-      confirmed:  () => confirmOrder(orderId),
-    },
-    confirmed: {
-      processing: () => processOrder(orderId),
-      cancelled:  () => cancelConfirmedOrder(orderId),
-    },
-    processing: {
-      shipped:    () => shipOrder(orderId),
-      cancelled:  () => cancelProcessingOrder(orderId),
-    },
-    shipped: {
-      delivered:  () => deliverOrder(orderId),
-      cancelled:  () => returnShippedOrder(orderId),
-    },
+  if (!canTransition(from, targetStatus)) {
+    return { success: false, error: `Transition non autorisée : ${from} → ${targetStatus}` }
   }
 
-  const handler = transitions[from]?.[targetStatus]
+  const handlers: Record<string, TransitionHandler> = {
+    'pending_whatsapp->confirmed': () => confirmOrder(orderId),
+    'confirmed->processing': () => processOrder(orderId),
+    'confirmed->cancelled': () => cancelConfirmedOrder(orderId),
+    'processing->shipped': () => shipOrder(orderId),
+    'processing->cancelled': () => cancelProcessingOrder(orderId),
+    'shipped->delivered': () => deliverOrder(orderId),
+    'shipped->cancelled': () => returnShippedOrder(orderId),
+  }
+
+  const handler = handlers[`${from}->${targetStatus}`]
   if (!handler) {
-    return {
-      success: false,
-      error: `Transition non autorisée : ${from} → ${targetStatus}`,
-    }
+    return { success: false, error: `Transition non gérée : ${from} → ${targetStatus}` }
   }
-
   return handler()
 }

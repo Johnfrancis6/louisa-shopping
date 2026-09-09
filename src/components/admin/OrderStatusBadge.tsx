@@ -1,16 +1,21 @@
+import { ORDER_STATUS_LABELS } from "@/lib/orders-display";
+import type { OrderStatus } from "@/lib/db/schema";
+
 const STYLES: Record<string, string> = {
-  pending_whatsapp: "bg-[var(--ls-gray-200)] text-[var(--ls-gray-900)]",
-  confirmed: "bg-[var(--ls-accent-light)] text-[var(--ls-accent-dark)]",
-  processing: "bg-[var(--ls-accent-light)] text-[var(--ls-accent)]",
-  shipped: "bg-[var(--ls-accent-light)] text-[var(--ls-accent)]",
-  delivered: "bg-green-50 text-[var(--ls-success)]",
-  cancelled: "bg-red-50 text-[var(--ls-danger)]",
+  pending_whatsapp: "bg-amber-100 text-amber-800",
+  confirmed: "bg-sky-100 text-sky-800",
+  processing: "bg-indigo-100 text-indigo-800",
+  shipped: "bg-violet-100 text-violet-800",
+  delivered: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
 };
 
 export function OrderStatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-block rounded px-[var(--ls-space-2)] py-[2px] text-[12px] font-medium ${STYLES[status] ?? ""}`}>
-      {status}
+    <span
+      className={`inline-block rounded px-2 py-[2px] text-xs font-medium ${STYLES[status] ?? "bg-neutral-100 text-neutral-700"}`}
+    >
+      {ORDER_STATUS_LABELS[status as OrderStatus] ?? status}
     </span>
   );
 }

@@ -8,10 +8,20 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
+import { inferAdditionalFields } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
-  // baseURL optionnel si même origine ; à définir explicitement si
-  // l'app est servie depuis un domaine différent de l'API.
+  // baseURL : même origine par défaut. À définir si l'app et l'API divergent.
+  plugins: [
+    // Doit refléter user.additionalFields de src/lib/auth.ts (forme littérale
+    // pour éviter d'importer le module serveur ici).
+    inferAdditionalFields({
+      user: {
+        phone: { type: "string", required: true },
+        role: { type: "string", required: false },
+      },
+    }),
+  ],
 });
 
 export const { signIn, signUp, signOut, useSession } = authClient;
