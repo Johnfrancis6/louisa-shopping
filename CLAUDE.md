@@ -85,10 +85,24 @@ Route group `src/app/(admin)/`. Reads: `src/lib/db/admin.ts` (joins/aggregates, 
 
 ## Known rough edges
 
-- `src/lib/data/*` and `src/lib/actions/catalog.ts` still return **mock data** (`MOCK_PRODUCTS`, `MOCK_CATEGORIES`); `src/lib/mock/` is another mock set. Cart/checkout/admin actions use the real DB.
-- Two parallel storefronts exist: root `src/app/page.tsx` + `layout.tsx` **and** the `(storefront)` / `(admin)` route groups and a `[category]/` route. They overlap and duplicate components (multiple `product-card.tsx`, `filter-*` variants). Confirm which tree is live before editing.
-- `src/app/[category]/page.tsx` is buggy WIP (`import { promise } from "better-auth"`, sync `params`/`searchParams` — Next 16 makes them `Promise`).
-- `src/app/api/` exists but has no Better Auth handler route yet.
+(The old mock-data / two-storefronts / `[category]` / no-auth-route items were all
+resolved in phases 0–3. `src/lib/data/*` reads the real DB via `dbAnon`; the single
+live tree is `(storefront)` + `admin` + `api`; Better Auth is at
+`src/app/api/auth/[...all]/route.ts`.)
+
+- **DB connection roles**: `dbAnon`/`dbAdmin` connect as `app_anon`/`app_service`
+  (dedicated LOGIN roles) — Supabase's `anon`/`service_role` are NOLOGIN. Migrations,
+  seed, `promote-admin` use `DATABASE_URL_MIGRATE` (`postgres`). Table GRANTs for the
+  app roles live in `supabase/policies.sql`. See `.env.example`.
+- **Admin is partial**: product detail (`/admin/products/[id]`) has the media manager
+  only — no product-field editor, variant edit/delete, tutorial-content CRUD, or
+  `/admin/orders/[id]` detail yet.
+- **Cloudinary upload** goes through a Server Action (`bodySizeLimit` 8 MB) — fine for
+  photos, needs signed direct-to-Cloudinary upload for video.
+- `src/lib/db/seed.ts` seeds categories/zones/whatsapp_config only — no demo products.
+- No test runner / no tests.
+- `/compte` and `/commander` guard with in-page `redirect()` (PPR: returns a 200 shell
+  then redirects in the stream) rather than a middleware 307 like `/admin/*`.
 
 ## Post-task documentation (existing instruction — verify before following)
 
