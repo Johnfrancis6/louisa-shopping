@@ -17,9 +17,13 @@ if (!email) {
   process.exit(1);
 }
 
-const url = process.env.DATABASE_URL_ADMIN;
+// Connexion `postgres` (DATABASE_URL_MIGRATE), pas `dbAdmin`/app_service :
+// script opérateur hors-bande, même contexte que db:deploy/db:seed. Et de
+// toute façon `service_role` est NOLOGIN chez Supabase — seul `postgres`
+// peut ouvrir une connexion directe pour un script CLI.
+const url = process.env.DATABASE_URL_MIGRATE ?? process.env.DATABASE_URL_ADMIN;
 if (!url) {
-  console.error("[promote-admin] DATABASE_URL_ADMIN manquante.");
+  console.error("[promote-admin] DATABASE_URL_MIGRATE (ou DATABASE_URL_ADMIN) manquante.");
   process.exit(1);
 }
 

@@ -7,10 +7,16 @@
  * SERVEUR UNIQUEMENT. Ne jamais importer ce module depuis un composant
  * client ("use client") ni l'exposer via une route publique brute.
  *
- * - dbAnon  : connexion via le rôle Postgres `anon`/`authenticated` de
- *             Supabase. RLS active, **lecture publique uniquement**.
- * - dbAdmin : connexion via le rôle `service_role` (clé secrète, jamais
- *             exposée au bundle client). Bypass RLS.
+ * - dbAnon  : connexion via `app_anon` (rôle LOGIN dédié, `in role anon`,
+ *             PAS de BYPASSRLS). RLS active, **lecture publique uniquement**.
+ * - dbAdmin : connexion via `app_service` (rôle LOGIN dédié, `in role
+ *             service_role`, BYPASSRLS). Accès complet, RLS ignorée.
+ *
+ * `anon` / `service_role` de Supabase sont NOLOGIN : on ne peut pas s'y
+ * connecter directement, d'où les deux rôles applicatifs. GRANT niveau table
+ * dans supabase/policies.sql, doc dans .env.example. Les scripts opérateurs
+ * (migrations, seed, promote-admin) passent par `postgres` / DATABASE_URL_MIGRATE,
+ * jamais par ces deux clients.
  *
  * Lazy initialization : requireEnv() et postgres() ne s'exécutent qu'au
  * premier appel effectif. Évite que Next.js plante au prerender/build

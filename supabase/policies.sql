@@ -1,15 +1,44 @@
--- IDEMPOTENT : ce fichier peut être ré-exécuté (drop policy if exists + enable
--- rls, qui est no-op si déjà actif). Appliqué via `npm run db:policies`.
+-- IDEMPOTENT : ce fichier peut être ré-exécuté (grants ré-appliqués, drop
+-- policy if exists + enable rls no-op si déjà actif). Appliqué via
+-- `npm run db:policies` (et `npm run db:deploy`, après les migrations).
 --
--- ⚠️ PRÉ-REQUIS : pour que ces policies contraignent RÉELLEMENT dbAnon, la
--- connexion DATABASE_URL_ANON doit se faire avec un rôle Postgres NON
--- privilégié (`authenticated` ou `anon`), pas `postgres`/owner (qui bypass
--- RLS). dbAdmin (DATABASE_URL_ADMIN) doit au contraire bypasser RLS
--- (service_role / owner). À vérifier côté chaînes de connexion Supabase.
+-- ⚠️ Rôles de connexion (cf. src/lib/db/client.ts, .env.example) :
+--   DATABASE_URL_ANON  -> app_anon    : LOGIN, `in role anon`, PAS de BYPASSRLS.
+--                          RLS le contraint réellement (filet deny-by-default).
+--   DATABASE_URL_ADMIN -> app_service : LOGIN, `in role service_role`, BYPASSRLS.
+--                          Accès complet, RLS ignorée (comme service_role).
+--   DATABASE_URL_MIGRATE -> postgres  : DDL / migrations / seed uniquement.
+-- `anon` et `service_role` sont NOLOGIN chez Supabase : on ne peut pas s'y
+-- connecter directement, d'où les rôles applicatifs app_anon / app_service.
+-- Création (une fois, hors de ce fichier car non idempotent) :
+--   create role app_anon    login password '<pw>' in role anon;
+--   create role app_service login password '<pw>' bypassrls in role service_role;
+
+-- ---------------------------------------------------------------------------
+-- GRANTS niveau table.
+-- Les migrations tournent via `postgres` ; les tables ainsi créées n'héritent
+-- PAS des GRANT Supabase par défaut pour anon/authenticated/service_role
+-- (réservés aux objets créés par `supabase_admin`). Sans SELECT niveau table,
+-- une policy RLS ne sert à rien : elle filtre des lignes parmi ce que le GRANT
+-- autorise, elle n'accorde aucun accès.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated, service_role;
+
+-- Lecture publique : SEULEMENT les tables à policy `*_public_read` ci-dessous.
+-- Surtout PAS order/customer/order_item/stock_ledger/wishlist/auth (double
+-- verrou : ni GRANT, ni policy).
+grant select on
+  "category", "product", "variant", "media", "tutorial_content",
+  "zone", "whatsapp_config", "review"
+to anon, authenticated;
+
+-- dbAdmin (app_service) : accès complet. BYPASSRLS gère la partie RLS, ce
+-- GRANT la partie privilèges de table.
+grant select, insert, update, delete on all tables in schema public to service_role;
 
 -- supabase/policies.sql
--- Policies RLS — s'appliquent au rôle utilisé par dbAnon (anon / authenticated).
--- dbAdmin (service_role) bypass RLS nativement sur Supabase.
+-- Policies RLS — s'appliquent au rôle utilisé par dbAnon (app_anon, `in role anon`).
+-- dbAdmin (app_service) bypasse RLS.
 --
 -- STRATÉGIE (contrat v2.5, section C — tranchée) :
 -- Pas de pont RLS auth.uid() <-> Better Auth. L'autorisation "propriétaire"
