@@ -12,10 +12,19 @@ import { whatsappConfig } from '@/lib/db/schema'
 // Types
 // ─────────────────────────────────────────────
 
+export interface WaDeliveryAddress {
+  fullName: string
+  phone: string
+  city: string
+  directions?: string
+}
+
 export interface WaMessageParams {
   orderId: string
   orderUrl: string        // ex. https://louisa.shop/commandes/<id>
   customerName: string
+  /** Adresse de livraison figée sur la commande — omise si absente */
+  deliveryAddress?: WaDeliveryAddress
   items: Array<{
     productName: string
     sku: string
@@ -55,18 +64,29 @@ export async function getWhatsappConfig() {
 // ─────────────────────────────────────────────
 
 function formatMessage(params: WaMessageParams): string {
-  const { orderId, orderUrl, customerName, items, total, paymentMethod } = params
+  const { orderId, orderUrl, customerName, deliveryAddress, items, total, paymentMethod } = params
 
   const lignes = items.map((item) => {
     const variante = [item.size, item.color].filter(Boolean).join(' / ')
     return `• ${item.productName}${variante ? ` (${variante})` : ''} — SKU ${item.sku} × ${item.qty} = ${(item.unitPrice * item.qty).toLocaleString('fr-FR')} FCFA`
   })
 
+  const livraison = deliveryAddress
+    ? [
+        '',
+        'Livraison :',
+        `${deliveryAddress.fullName} — ${deliveryAddress.phone}`,
+        deliveryAddress.city,
+        ...(deliveryAddress.directions ? [deliveryAddress.directions] : []),
+      ]
+    : []
+
   return [
     `Bonjour, je viens de passer la commande n° ${orderId}.`,
     '',
     `Client : ${customerName}`,
     `Règlement souhaité : ${PAYMENT_LABELS[paymentMethod]}`,
+    ...livraison,
     '',
     'Récapitulatif :',
     ...lignes,

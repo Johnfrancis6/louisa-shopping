@@ -34,3 +34,22 @@ export interface OrderSnapshotItem {
 export function readSnapshot(value: unknown): OrderSnapshotItem[] {
   return Array.isArray(value) ? (value as OrderSnapshotItem[]) : []
 }
+
+/** Adresse de livraison figée sur `order.deliveryAddress` (cf. checkout.ts). */
+export interface OrderDeliveryAddress {
+  fullName: string
+  phone: string
+  city: string
+  directions?: string
+}
+
+export function readDeliveryAddress(value: unknown): OrderDeliveryAddress | null {
+  if (!value || typeof value !== 'object') return null
+  const a = value as Record<string, unknown>
+  const fullName = typeof a.fullName === 'string' ? a.fullName : ''
+  const phone = typeof a.phone === 'string' ? a.phone : ''
+  const city = typeof a.city === 'string' ? a.city : ''
+  if (!fullName && !city && !phone) return null
+  const directions = typeof a.directions === 'string' && a.directions ? a.directions : undefined
+  return { fullName, phone, city, ...(directions ? { directions } : {}) }
+}

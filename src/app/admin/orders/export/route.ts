@@ -5,6 +5,7 @@
 
 import { listOrdersAdmin } from "@/lib/db/admin";
 import { getAdminUserId } from "@/lib/auth-guards";
+import { readDeliveryAddress } from "@/lib/orders-display";
 
 function csvEscape(value: unknown): string {
   const str = String(value ?? "");
@@ -18,12 +19,26 @@ export async function GET() {
 
   const orders = await listOrdersAdmin();
 
-  const header = ["id", "statut", "client", "telephone", "total_fcfa", "paiement", "ref_whatsapp", "cree_le"];
-  const rows = orders.map((o) =>
-    [o.id, o.status, o.customerName, o.customerPhone, o.total, o.paymentMethod, o.whatsappRef ?? "", o.createdAt?.toISOString()]
+  const header = ["id", "statut", "client", "telephone", "livraison_nom", "livraison_telephone", "quartier_ville", "indications", "total_fcfa", "paiement", "ref_whatsapp", "cree_le"];
+  const rows = orders.map((o) => {
+    const a = readDeliveryAddress(o.deliveryAddress);
+    return [
+      o.id,
+      o.status,
+      o.customerName,
+      o.customerPhone,
+      a?.fullName ?? "",
+      a?.phone ?? "",
+      a?.city ?? "",
+      a?.directions ?? "",
+      o.total,
+      o.paymentMethod,
+      o.whatsappRef ?? "",
+      o.createdAt?.toISOString(),
+    ]
       .map(csvEscape)
-      .join(",")
-  );
+      .join(",");
+  });
   const csv = [header.join(","), ...rows].join("\n");
 
   return new Response(csv, {

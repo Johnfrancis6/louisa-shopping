@@ -10,6 +10,7 @@ import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   readSnapshot,
+  readDeliveryAddress,
 } from '@/lib/orders-display'
 import type { OrderStatus } from '@/lib/db/schema'
 
@@ -36,6 +37,7 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
 
   const order = result.order
   const items = readSnapshot(order.itemsSnapshot)
+  const address = readDeliveryAddress(order.deliveryAddress)
   const status = order.status as OrderStatus
   const waUrl = status === 'pending_whatsapp' ? await getOrderWhatsappUrl(id) : null
 
@@ -96,6 +98,20 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
           Règlement : {PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod}
         </p>
       </section>
+
+      {address && (
+        <section className="rounded-ls-card border border-ls-gray-200 bg-ls-white p-4">
+          <h2 className="text-ls-h2 text-ls-gray-900">Livraison</h2>
+          <div className="mt-2 text-ls-body text-ls-gray-900">
+            <p>{address.fullName}</p>
+            <p className="text-ls-gray-500">{address.phone}</p>
+            <p className="text-ls-gray-500">{address.city}</p>
+            {address.directions && (
+              <p className="text-ls-gray-500">{address.directions}</p>
+            )}
+          </div>
+        </section>
+      )}
 
       <Link href="/compte" className="text-ls-body text-ls-accent underline">
         Voir toutes mes commandes

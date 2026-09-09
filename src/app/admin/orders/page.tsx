@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 import { listOrdersAdmin } from '@/lib/db/admin'
 import { formatPrice } from '@/lib/utils/format'
-import { PAYMENT_METHOD_LABELS, readSnapshot } from '@/lib/orders-display'
+import { PAYMENT_METHOD_LABELS, readSnapshot, readDeliveryAddress } from '@/lib/orders-display'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { OrderTransitions } from '@/components/admin/order-transitions'
 import type { OrderStatus } from '@/lib/db/schema'
@@ -43,6 +43,7 @@ async function OrdersTable() {
           <tr>
             <th className="px-3 py-2">Date</th>
             <th className="px-3 py-2">Client</th>
+            <th className="px-3 py-2">Livraison</th>
             <th className="px-3 py-2">Articles</th>
             <th className="px-3 py-2">Total</th>
             <th className="px-3 py-2">Règlement</th>
@@ -53,7 +54,7 @@ async function OrdersTable() {
         <tbody>
           {orders.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-3 py-8 text-center text-neutral-400">
+              <td colSpan={8} className="px-3 py-8 text-center text-neutral-400">
                 Aucune commande.
               </td>
             </tr>
@@ -61,6 +62,7 @@ async function OrdersTable() {
           {orders.map((o) => {
             const items = readSnapshot(o.itemsSnapshot)
             const count = items.reduce((n, it) => n + it.qty, 0)
+            const address = readDeliveryAddress(o.deliveryAddress)
             return (
               <tr key={o.id} className="border-b border-neutral-100 align-top last:border-0">
                 <td className="whitespace-nowrap px-3 py-2 text-neutral-500">
@@ -69,6 +71,21 @@ async function OrdersTable() {
                 <td className="px-3 py-2">
                   <div>{o.customerName ?? '—'}</div>
                   <div className="text-xs text-neutral-500">{o.customerPhone ?? ''}</div>
+                </td>
+                <td className="px-3 py-2 text-neutral-600">
+                  {address ? (
+                    <div className="max-w-[16rem]">
+                      <div>{address.city}</div>
+                      <div className="text-xs text-neutral-500">
+                        {address.fullName} · {address.phone}
+                      </div>
+                      {address.directions && (
+                        <div className="text-xs text-neutral-400">{address.directions}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-neutral-400">—</span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-neutral-500">{count}</td>
                 <td className="px-3 py-2 font-medium">{formatPrice(o.total)}</td>

@@ -37,8 +37,13 @@ const nextConfig: NextConfig = {
     return [
       {
         // Tunnel checkout exclu du cache (contrat §A) — défense en profondeur
-        // en plus de la config PWA côté UI.
-        source: '/checkout/:path*',
+        // en plus de la config PWA côté UI. Route réelle : /commander (+ le
+        // suivi /commandes/*, qui porte des données nominatives).
+        source: '/commander',
+        headers: [{ key: 'Cache-Control', value: 'no-store' }],
+      },
+      {
+        source: '/commandes/:path*',
         headers: [{ key: 'Cache-Control', value: 'no-store' }],
       },
     ]

@@ -18,7 +18,7 @@ import { dbAdmin, dbAnon } from '@/lib/db/client'
 import { orders, orderItems, variants, products, customer } from '@/lib/db/schema'
 import { and, eq, inArray } from 'drizzle-orm'
 import { buildWhatsappUrl } from '@/lib/whatsapp'
-import { getUserId } from '@/lib/auth-guards'
+import { getSession, getUserId } from '@/lib/auth-guards'
 import { readSnapshot } from '@/lib/orders-display'
 import { getCart, clearCart } from './cart'
 
@@ -26,13 +26,73 @@ import { getCart, clearCart } from './cart'
 // Types
 // ─────────────────────────────────────────────
 
+/**
+ * Adresse de livraison saisie à l'étape « adresse » du tunnel. Figée sur la
+ * commande (`order.deliveryAddress`) et recopiée sur `customer.addressJson`
+ * pour pré-remplir la fois suivante.
+ */
+export interface DeliveryAddress {
+  fullName:    string
+  phone:       string
+  /** Quartier / ville — pas de découpage plus fin (modèle BF, livraison vendeur) */
+  city:        string
+  /** Indications complémentaires (repères, étage…) — optionnel */
+  directions?: string
+}
+
 export interface CheckoutInput {
-  name:          string
-  phone:         string
-  email?:        string
-  addressJson?:  Record<string, unknown>
+  address:       DeliveryAddress
   /** Intention de paiement — affichage vitrine uniquement */
   paymentMethod: 'mobile_money_orange' | 'mobile_money_moov' | 'cod'
+}
+
+const PHONE_REGEX = /^\+?[0-9\s-]{8,20}$/
+
+/** Normalise l'adresse issue du client (trim, drop directions vide). */
+function cleanAddress(a: DeliveryAddress | undefined): DeliveryAddress | null {
+  if (!a) return null
+  const fullName = a.fullName?.trim() ?? ''
+  const phone = a.phone?.trim() ?? ''
+  const city = a.city?.trim() ?? ''
+  const directions = a.directions?.trim() ?? ''
+  if (!fullName || !city || !PHONE_REGEX.test(phone)) return null
+  return directions ? { fullName, phone, city, directions } : { fullName, phone, city }
+}
+
+/**
+ * Adresse de livraison pré-remplie pour l'étape « adresse » du tunnel :
+ * `customer.addressJson` si déjà renseignée, sinon nom + téléphone de session.
+ * Toujours partiel — l'appelant garde déjà la session (page /commander).
+ */
+export async function getMyDeliveryAddress(): Promise<Partial<DeliveryAddress>> {
+  const session = await getSession()
+  if (!session?.user?.id) return {}
+
+  const fallback: Partial<DeliveryAddress> = {
+    fullName: session.user.name ?? '',
+    phone: (session.user as { phone?: string }).phone ?? '',
+  }
+
+  try {
+    const [row] = await dbAdmin
+      .select({ addressJson: customer.addressJson })
+      .from(customer)
+      .where(eq(customer.id, session.user.id))
+      .limit(1)
+
+    const saved = (row?.addressJson ?? null) as Partial<DeliveryAddress> | null
+    if (saved && typeof saved === 'object') {
+      return {
+        fullName: saved.fullName || fallback.fullName,
+        phone: saved.phone || fallback.phone,
+        city: saved.city ?? '',
+        directions: saved.directions ?? '',
+      }
+    }
+  } catch (err) {
+    console.error('[checkout] getMyDeliveryAddress', err)
+  }
+  return fallback
 }
 
 export interface CheckoutResult {
@@ -60,8 +120,9 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
     return { success: false, error: 'Session expirée — veuillez vous reconnecter' }
   }
 
-  if (!input?.name?.trim() || !input?.phone?.trim()) {
-    return { success: false, error: 'Nom et téléphone requis' }
+  const address = cleanAddress(input?.address)
+  if (!address) {
+    return { success: false, error: 'Adresse de livraison incomplète — nom, téléphone et quartier/ville requis' }
   }
   if (!PAYMENT_METHODS.includes(input.paymentMethod)) {
     return { success: false, error: 'Mode de paiement invalide' }
@@ -138,6 +199,7 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
           qty:                 l.qty,
           has_tutorial:        l.hasTutorial,
         })),
+        deliveryAddress: address,
         whatsappRef: null,
       })
 
@@ -150,6 +212,12 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
           unitPrice: l.unitPrice,
         })),
       )
+
+      // Recopie sur le profil pour pré-remplir la prochaine commande.
+      await tx
+        .update(customer)
+        .set({ addressJson: address })
+        .where(eq(customer.id, userId))
     })
   } catch (err) {
     console.error('[checkout] Transaction échouée', err)
@@ -164,7 +232,8 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
     const whatsappUrl = await buildWhatsappUrl({
       orderId,
       orderUrl:      `${BASE_URL}/commandes/${orderId}`,
-      customerName:  input.name.trim(),
+      customerName:  address.fullName,
+      deliveryAddress: address,
       paymentMethod: input.paymentMethod,
       total,
       items: items.map((l) => ({
@@ -203,6 +272,7 @@ export async function getOrderWhatsappUrl(orderId: string): Promise<string | nul
         total: orders.total,
         paymentMethod: orders.paymentMethod,
         itemsSnapshot: orders.itemsSnapshot,
+        deliveryAddress: orders.deliveryAddress,
         customerName: customer.name,
       })
       .from(orders)
@@ -212,10 +282,13 @@ export async function getOrderWhatsappUrl(orderId: string): Promise<string | nul
 
     if (!row) return null
 
+    const address = cleanAddress(row.deliveryAddress as DeliveryAddress | undefined)
+
     return await buildWhatsappUrl({
       orderId: row.id,
       orderUrl: `${BASE_URL}/commandes/${row.id}`,
-      customerName: row.customerName,
+      customerName: address?.fullName ?? row.customerName,
+      deliveryAddress: address ?? undefined,
       paymentMethod: row.paymentMethod as CheckoutInput['paymentMethod'],
       total: row.total,
       items: readSnapshot(row.itemsSnapshot).map((it) => ({

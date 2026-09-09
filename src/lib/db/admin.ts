@@ -77,6 +77,7 @@ export async function listOrdersAdmin() {
       customerName: customer.name,
       customerPhone: customer.phone,
       itemsSnapshot: order.itemsSnapshot,
+      deliveryAddress: order.deliveryAddress,
     })
     .from(order)
     .leftJoin(customer, eq(order.customerId, customer.id))

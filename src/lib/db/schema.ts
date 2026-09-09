@@ -505,6 +505,15 @@ export const order = pgTable(
      *   qty, image_url, has_tutorial }
      */
     itemsSnapshot: jsonb("items_snapshot").notNull(),
+    /**
+     * Adresse de livraison figée au moment de la commande (même logique que
+     * items_snapshot : le vendeur livre contre la commande, pas contre le
+     * profil client qui peut changer ensuite). Renseignée par `createOrder`.
+     * Forme : { fullName, phone, city, directions? } — cf. DeliveryAddress
+     * dans src/lib/actions/checkout.ts. Nullable pour les commandes créées
+     * avant cette colonne.
+     */
+    deliveryAddress: jsonb("delivery_address"),
     // Renseigné par l'admin à la validation (confirmed) — cf. contrat B
     whatsappRef: text("whatsapp_ref"),
     createdAt: timestamp("created_at", { withTimezone: true })
