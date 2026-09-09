@@ -103,10 +103,10 @@ file straight to `https://api.cloudinary.com/v1_1/<cloud>/auto/upload`; then cal
 
 ---
 
-## 7. `.nvmrc` missing 🟢
+## 7. `.nvmrc` missing 🟢 → ✅ done
 
-Node 22 is declared in `netlify.toml` and `.github/workflows/ci-cd.yml` but not
-pinned for local dev. Add `echo "22" > .nvmrc`. `HANDOFF_dependencies.md` task 5.
+**Resolved 2026-09-09.** `.nvmrc` (`22`) added, matching `netlify.toml` and
+`.github/workflows/ci-cd.yml`. `HANDOFF_dependencies.md` task 5.
 
 ---
 

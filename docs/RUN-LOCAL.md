@@ -4,7 +4,7 @@ Get the app running on your machine. ~5 min if `.env.local` is already populated
 
 ## 0. Prerequisites
 
-- **Node 22** (no `.nvmrc` yet — see `FIXES.md` #7). `node -v` → `v22.x`.
+- **Node 22** (pinned in `.nvmrc` — `nvm use`). `node -v` → `v22.x`.
 - **npm** (repo uses `package-lock.json`; CI runs `npm ci`).
 - **`psql`** client, only if you want to run the DB checks in this doc.
 
