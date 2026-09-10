@@ -3,11 +3,13 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { Trash2 } from 'lucide-react'
 import {
   createCategory,
   toggleCategoryVisibility,
   deleteCategory,
 } from '@/lib/actions/admin/categories'
+import { Card, fieldInput, btnPrimary, btnDanger } from './ui'
 
 type Row = {
   id: string
@@ -21,7 +23,7 @@ type Row = {
 export function CategoryCreateForm() {
   const router = useRouter()
   const [pending, start] = useTransition()
-  const [f, setF] = useState({ name: '', slug: '', bgColor: '#EEF2FF' })
+  const [f, setF] = useState({ name: '', slug: '', bgColor: '#B818C9' })
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,7 +31,7 @@ export function CategoryCreateForm() {
       const res = await createCategory({ name: f.name, slug: f.slug, bgColor: f.bgColor })
       if (res.ok) {
         toast.success('Catégorie créée')
-        setF({ name: '', slug: '', bgColor: '#EEF2FF' })
+        setF({ name: '', slug: '', bgColor: '#B818C9' })
         router.refresh()
       } else {
         toast.error(res.error ?? 'Échec')
@@ -38,40 +40,31 @@ export function CategoryCreateForm() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-wrap items-end gap-3 rounded border border-ls-gray-200 bg-white p-4">
-      <label className="flex flex-col gap-1 text-xs">
+    <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+      <label className="flex flex-col gap-1 text-xs font-medium text-ls-gray-500">
         Nom
-        <input
-          required
-          value={f.name}
-          onChange={(e) => setF({ ...f, name: e.target.value })}
-          className="rounded border border-ls-gray-300 px-2 py-1.5 text-sm"
-        />
+        <input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={fieldInput} />
       </label>
-      <label className="flex flex-col gap-1 text-xs">
+      <label className="flex flex-col gap-1 text-xs font-medium text-ls-gray-500">
         Slug
         <input
           required
           value={f.slug}
           onChange={(e) => setF({ ...f, slug: e.target.value.toLowerCase() })}
-          className="rounded border border-ls-gray-300 px-2 py-1.5 text-sm"
+          className={fieldInput}
         />
       </label>
-      <label className="flex flex-col gap-1 text-xs">
-        Fond (hex)
+      <label className="flex items-center gap-3 text-xs font-medium text-ls-gray-500">
+        Couleur de fond
         <input
           type="color"
           value={f.bgColor}
           onChange={(e) => setF({ ...f, bgColor: e.target.value })}
-          className="h-8 w-16 rounded border border-ls-gray-300"
+          className="h-10 w-14 rounded-ls-sm border border-ls-gray-300"
         />
       </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-ls-gray-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-      >
-        Ajouter
+      <button type="submit" disabled={pending} className={btnPrimary + ' sm:col-span-2'}>
+        Ajouter la catégorie
       </button>
     </form>
   )
@@ -94,40 +87,46 @@ export function CategoryRow({ row }: { row: Row }) {
   }
 
   return (
-    <tr className="border-b border-ls-gray-100 last:border-0">
-      <td className="px-3 py-2">
+    <Card className="gap-3">
+      <div className="flex items-center gap-3">
         <span
-          className="inline-block h-4 w-4 rounded border border-ls-gray-300 align-middle"
+          className="h-10 w-10 shrink-0 rounded-ls-sm border border-ls-gray-200"
           style={{ background: row.bgColor }}
         />
-      </td>
-      <td className="px-3 py-2">{row.name}</td>
-      <td className="px-3 py-2 text-ls-gray-500">{row.slug}</td>
-      <td className="px-3 py-2 text-ls-gray-500">{row.position}</td>
-      <td className="px-3 py-2">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-ls-gray-900">{row.name}</p>
+          <p className="text-xs text-ls-gray-500">
+            {row.slug} · position {row.position}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-ls-gray-100 pt-3">
         <button
           type="button"
           disabled={pending}
-          onClick={() =>
-            act(() => toggleCategoryVisibility(row.id, !row.visible), 'Visibilité mise à jour')
+          onClick={() => act(() => toggleCategoryVisibility(row.id, !row.visible), 'Visibilité mise à jour')}
+          className={
+            'inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors disabled:opacity-40 ' +
+            (row.visible ? 'bg-ls-success-bg text-ls-success' : 'bg-ls-gray-100 text-ls-gray-500')
           }
-          className="rounded border border-ls-gray-300 px-2 py-1 text-xs hover:bg-ls-gray-50 disabled:opacity-40"
         >
+          <span className={'h-2 w-2 rounded-full ' + (row.visible ? 'bg-ls-success' : 'bg-ls-gray-400')} />
           {row.visible ? 'Visible' : 'Masquée'}
         </button>
-      </td>
-      <td className="px-3 py-2">
+
         <button
           type="button"
           disabled={pending}
           onClick={() => {
             if (confirm(`Supprimer « ${row.name} » ?`)) act(() => deleteCategory(row.id), 'Supprimée')
           }}
-          className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-40"
+          className={btnDanger + ' ml-auto h-9'}
         >
+          <Trash2 size={14} />
           Supprimer
         </button>
-      </td>
-    </tr>
+      </div>
+    </Card>
   )
 }

@@ -3,7 +3,9 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { Check, X } from 'lucide-react'
 import { approveReview, rejectReview } from '@/lib/actions/admin/reviews'
+import { cn } from '@/lib/utils'
 
 export function ReviewModeration({ id, status }: { id: string; status: string }) {
   const router = useRouter()
@@ -21,28 +23,33 @@ export function ReviewModeration({ id, status }: { id: string; status: string })
     })
   }
 
-  if (status !== 'pending') {
-    return <span className="text-xs text-ls-gray-400">{status}</span>
-  }
+  const base =
+    'inline-flex h-10 items-center justify-center gap-1.5 rounded-ls-sm px-3.5 text-sm font-medium transition-colors disabled:opacity-40'
 
   return (
-    <div className="flex gap-1.5">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => act(() => approveReview(id), 'Avis approuvé')}
-        className="rounded border border-green-200 px-2 py-1 text-xs text-green-700 hover:bg-green-50 disabled:opacity-40"
-      >
-        Approuver
-      </button>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => act(() => rejectReview(id), 'Avis rejeté')}
-        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-40"
-      >
-        Rejeter
-      </button>
+    <div className="flex flex-wrap gap-2">
+      {status !== 'approved' && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => act(() => approveReview(id), 'Avis approuvé')}
+          className={cn(base, 'bg-ls-success-bg text-ls-success hover:brightness-95')}
+        >
+          <Check size={16} />
+          Approuver
+        </button>
+      )}
+      {status !== 'rejected' && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => act(() => rejectReview(id), 'Avis rejeté')}
+          className={cn(base, 'border border-ls-danger/30 text-ls-danger hover:bg-ls-danger-bg')}
+        >
+          <X size={16} />
+          Rejeter
+        </button>
+      )}
     </div>
   )
 }

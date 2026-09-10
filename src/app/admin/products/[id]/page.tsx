@@ -2,9 +2,11 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
+import { ArrowLeft } from 'lucide-react'
 import { getProductAdmin, listProductMedia } from '@/lib/db/admin'
 import { formatPrice } from '@/lib/utils/format'
 import { MediaManager } from '@/components/admin/media-manager'
+import { Panel, LoadingRows } from '@/components/admin/ui'
 
 export default function AdminProductDetailPage({
   params,
@@ -12,11 +14,15 @@ export default function AdminProductDetailPage({
   params: Promise<{ id: string }>
 }) {
   return (
-    <div className="max-w-3xl">
-      <Link href="/admin/products" className="text-sm text-ls-gray-500 hover:underline">
-        ← Catalogue
+    <div>
+      <Link
+        href="/admin/products"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-ls-gray-500 hover:text-ls-violet-dark"
+      >
+        <ArrowLeft size={15} />
+        Catalogue
       </Link>
-      <Suspense fallback={<p className="mt-4 text-sm text-ls-gray-500">Chargement…</p>}>
+      <Suspense fallback={<LoadingRows />}>
         <ProductDetail params={params} />
       </Suspense>
     </div>
@@ -33,21 +39,19 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const images = await listProductMedia(id)
 
   return (
-    <>
-      <div className="mt-2 mb-6">
-        <h1 className="text-xl font-semibold">{product.name}</h1>
-        <p className="text-xs text-ls-gray-500">
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-lg font-semibold text-ls-gray-900 sm:text-xl">{product.name}</h1>
+        <p className="mt-1 text-sm text-ls-gray-500">
           {product.slug} · {product.categoryName ?? '—'} · {formatPrice(product.basePrice)}
           {product.isActive ? '' : ' · inactif'}
         </p>
       </div>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ls-gray-500">
-          Images
-        </h2>
+      <Panel>
+        <p className="mb-4 text-sm font-semibold text-ls-gray-900">Images</p>
         <MediaManager productId={id} images={images} />
-      </section>
-    </>
+      </Panel>
+    </div>
   )
 }

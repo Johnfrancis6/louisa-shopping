@@ -2,16 +2,22 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { getWhatsappConfig } from '@/lib/db/admin'
 import { WhatsappConfigForm } from '@/components/admin/whatsapp-config-form'
+import { PageHeader, Panel } from '@/components/admin/ui'
 
 export default function AdminWhatsappPage() {
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Configuration WhatsApp</h1>
-      <p className="mb-4 max-w-md text-sm text-ls-gray-500">
-        Numéro et lien utilisés pour le bouton de commande. Le lien wa.me est
-        pré-construit — il est utilisé tel quel côté site.
-      </p>
-      <Suspense fallback={<p className="text-sm text-ls-gray-500">Chargement…</p>}>
+      <PageHeader
+        title="Configuration WhatsApp"
+        description="Numéro et lien wa.me utilisés par le bouton « Confirmer sur WhatsApp » du suivi de commande."
+      />
+      <Suspense
+        fallback={
+          <Panel className="max-w-md">
+            <div className="ls-skeleton h-40 w-full rounded-ls-sm" />
+          </Panel>
+        }
+      >
         <ConfigLoader />
       </Suspense>
     </div>
@@ -28,9 +34,6 @@ async function ConfigLoader() {
   }
 
   return (
-    <WhatsappConfigForm
-      numero={config?.numero ?? ''}
-      lienWa={config?.lienWa ?? ''}
-    />
+    <WhatsappConfigForm numero={config?.numero ?? ''} lienWa={config?.lienWa ?? ''} />
   )
 }

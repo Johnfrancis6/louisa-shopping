@@ -20,9 +20,11 @@ export default async function AdminLayout({
   if (!adminId) redirect('/connexion?next=/admin/orders')
 
   return (
-    <div className="flex min-h-svh bg-ls-gray-100 text-ls-gray-900">
+    <div className="min-h-svh bg-ls-gray-100 text-ls-gray-900 md:flex">
       <AdminSidebar />
-      <main className="flex-1 overflow-x-auto p-6">{children}</main>
+      <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto max-w-5xl">{children}</div>
+      </main>
     </div>
   )
 }

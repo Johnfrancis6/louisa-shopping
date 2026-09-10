@@ -3,10 +3,24 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { Check, Truck, X } from 'lucide-react'
 import { requestOrderStatusTransition } from '@/lib/actions/admin/orders'
 import { allowedNextStatuses } from '@/lib/order-transitions'
 import { ORDER_STATUS_LABELS } from '@/lib/orders-display'
+import { cn } from '@/lib/utils'
 import type { OrderStatus } from '@/lib/db/schema'
+
+const ICON: Partial<Record<OrderStatus, typeof Check>> = {
+  confirmed: Check,
+  delivered: Truck,
+  cancelled: X,
+}
+
+const ACTION_LABEL: Partial<Record<OrderStatus, string>> = {
+  confirmed: 'Confirmer',
+  delivered: 'Marquer livrée',
+  cancelled: 'Annuler',
+}
 
 export function OrderTransitions({
   orderId,
@@ -20,7 +34,11 @@ export function OrderTransitions({
   const next = allowedNextStatuses(status)
 
   if (next.length === 0) {
-    return <span className="text-xs text-ls-gray-400">—</span>
+    return (
+      <p className="text-sm text-ls-gray-400">
+        {status === 'delivered' ? 'Commande livrée.' : status === 'cancelled' ? 'Commande annulée.' : 'Aucune action.'}
+      </p>
+    )
   }
 
   function go(target: OrderStatus) {
@@ -36,22 +54,28 @@ export function OrderTransitions({
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {next.map((target) => (
-        <button
-          key={target}
-          type="button"
-          disabled={pending}
-          onClick={() => go(target)}
-          className={`rounded border px-2 py-1 text-xs font-medium disabled:opacity-40 ${
-            target === 'cancelled'
-              ? 'border-red-200 text-red-700 hover:bg-red-50'
-              : 'border-ls-gray-300 hover:bg-ls-gray-50'
-          }`}
-        >
-          {ORDER_STATUS_LABELS[target]}
-        </button>
-      ))}
+    <div className="flex flex-wrap gap-2">
+      {next.map((target) => {
+        const Icon = ICON[target]
+        const danger = target === 'cancelled'
+        return (
+          <button
+            key={target}
+            type="button"
+            disabled={pending}
+            onClick={() => go(target)}
+            className={cn(
+              'inline-flex h-10 items-center justify-center gap-1.5 rounded-ls-sm px-3.5 text-sm font-medium transition-colors disabled:opacity-40',
+              danger
+                ? 'border border-ls-danger/30 text-ls-danger hover:bg-ls-danger-bg'
+                : 'bg-ls-violet text-white hover:bg-ls-violet-dark',
+            )}
+          >
+            {Icon && <Icon size={16} />}
+            {ACTION_LABEL[target] ?? ORDER_STATUS_LABELS[target]}
+          </button>
+        )
+      })}
     </div>
   )
 }

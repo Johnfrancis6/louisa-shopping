@@ -1,33 +1,36 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { connection } from 'next/server'
+import { Download } from 'lucide-react'
 import { listOrdersAdmin } from '@/lib/db/admin'
 import { formatPrice } from '@/lib/utils/format'
 import { PAYMENT_METHOD_LABELS, readSnapshot, readDeliveryAddress } from '@/lib/orders-display'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { OrderTransitions } from '@/components/admin/order-transitions'
+import { PageHeader, Card, CardList, EmptyState, LoadingRows, btnOutline } from '@/components/admin/ui'
 import type { OrderStatus } from '@/lib/db/schema'
 
 export default function AdminOrdersPage() {
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Commandes</h1>
-        <Link
-          href="/admin/orders/export"
-          className="rounded border border-ls-gray-300 px-3 py-1.5 text-sm hover:bg-ls-gray-50"
-        >
-          Export CSV
-        </Link>
-      </div>
-      <Suspense fallback={<p className="text-sm text-ls-gray-500">Chargement…</p>}>
-        <OrdersTable />
+      <PageHeader
+        title="Commandes"
+        description="Valider une commande reçue sur WhatsApp, puis la marquer livrée."
+        action={
+          <Link href="/admin/orders/export" className={btnOutline}>
+            <Download size={16} />
+            Export CSV
+          </Link>
+        }
+      />
+      <Suspense fallback={<LoadingRows />}>
+        <OrdersList />
       </Suspense>
     </div>
   )
 }
 
-async function OrdersTable() {
+async function OrdersList() {
   await connection()
   let orders: Awaited<ReturnType<typeof listOrdersAdmin>> = []
   try {
@@ -36,73 +39,81 @@ async function OrdersTable() {
     console.error('[admin/orders]', err)
   }
 
+  if (orders.length === 0) return <EmptyState>Aucune commande.</EmptyState>
+
   return (
-    <div className="overflow-x-auto rounded border border-ls-gray-200 bg-white">
-      <table className="w-full text-sm">
-        <thead className="border-b border-ls-gray-200 bg-ls-gray-50 text-left text-xs uppercase text-ls-gray-500">
-          <tr>
-            <th className="px-3 py-2">Date</th>
-            <th className="px-3 py-2">Client</th>
-            <th className="px-3 py-2">Livraison</th>
-            <th className="px-3 py-2">Articles</th>
-            <th className="px-3 py-2">Total</th>
-            <th className="px-3 py-2">Règlement</th>
-            <th className="px-3 py-2">Statut</th>
-            <th className="px-3 py-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.length === 0 && (
-            <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-ls-gray-400">
-                Aucune commande.
-              </td>
-            </tr>
-          )}
-          {orders.map((o) => {
-            const items = readSnapshot(o.itemsSnapshot)
-            const count = items.reduce((n, it) => n + it.qty, 0)
-            const address = readDeliveryAddress(o.deliveryAddress)
-            return (
-              <tr key={o.id} className="border-b border-ls-gray-100 align-top last:border-0">
-                <td className="whitespace-nowrap px-3 py-2 text-ls-gray-500">
-                  {o.createdAt ? new Date(o.createdAt).toLocaleDateString('fr-FR') : ''}
-                </td>
-                <td className="px-3 py-2">
-                  <div>{o.customerName ?? '—'}</div>
-                  <div className="text-xs text-ls-gray-500">{o.customerPhone ?? ''}</div>
-                </td>
-                <td className="px-3 py-2 text-ls-gray-600">
-                  {address ? (
-                    <div className="max-w-[16rem]">
-                      <div>{address.city}</div>
-                      <div className="text-xs text-ls-gray-500">
-                        {address.fullName} · {address.phone}
-                      </div>
-                      {address.directions && (
-                        <div className="text-xs text-ls-gray-400">{address.directions}</div>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-ls-gray-400">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-ls-gray-500">{count}</td>
-                <td className="px-3 py-2 font-medium">{formatPrice(o.total)}</td>
-                <td className="px-3 py-2 text-ls-gray-500">
-                  {PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}
-                </td>
-                <td className="px-3 py-2">
-                  <OrderStatusBadge status={o.status} />
-                </td>
-                <td className="px-3 py-2">
-                  <OrderTransitions orderId={o.id} status={o.status as OrderStatus} />
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+    <CardList>
+      {orders.map((o) => {
+        const items = readSnapshot(o.itemsSnapshot)
+        const count = items.reduce((n, it) => n + it.qty, 0)
+        const address = readDeliveryAddress(o.deliveryAddress)
+        return (
+          <Card key={o.id}>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-ls-gray-900">{o.customerName ?? '—'}</p>
+                <p className="text-xs text-ls-gray-500">
+                  {o.customerPhone ?? ''}
+                  {o.createdAt
+                    ? ` · ${new Date(o.createdAt).toLocaleDateString('fr-FR')}`
+                    : ''}
+                </p>
+              </div>
+              <OrderStatusBadge status={o.status} />
+            </div>
+
+            <ul className="rounded-ls-sm bg-ls-gray-50 p-3 text-sm text-ls-gray-700">
+              {items.map((it) => (
+                <li key={it.variant_id} className="flex justify-between gap-3 py-0.5">
+                  <span className="min-w-0 truncate">
+                    {it.product_name}
+                    {[it.size, it.color].filter(Boolean).length
+                      ? ` (${[it.size, it.color].filter(Boolean).join(' / ')})`
+                      : ''}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-ls-gray-500">×{it.qty}</span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="grid gap-1 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-ls-gray-500">Total ({count} art.)</span>
+                <span className="font-semibold text-ls-gray-900">{formatPrice(o.total)}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-ls-gray-500">Règlement</span>
+                <span>{PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}</span>
+              </div>
+              {o.whatsappRef && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-ls-gray-500">Réf. WhatsApp</span>
+                  <span className="tabular-nums">{o.whatsappRef}</span>
+                </div>
+              )}
+            </div>
+
+            {address ? (
+              <div className="border-t border-ls-gray-100 pt-3 text-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-ls-gray-400">
+                  Livraison
+                </p>
+                <p className="mt-1 text-ls-gray-900">{address.city}</p>
+                <p className="text-ls-gray-500">
+                  {address.fullName} · {address.phone}
+                </p>
+                {address.directions && (
+                  <p className="text-ls-gray-500">{address.directions}</p>
+                )}
+              </div>
+            ) : null}
+
+            <div className="border-t border-ls-gray-100 pt-3">
+              <OrderTransitions orderId={o.id} status={o.status as OrderStatus} />
+            </div>
+          </Card>
+        )
+      })}
+    </CardList>
   )
 }

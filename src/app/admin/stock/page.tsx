@@ -2,23 +2,23 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { listStockOverview } from '@/lib/db/admin'
 import { StockAdjust } from '@/components/admin/stock-adjust'
+import { PageHeader, Card, CardList, EmptyState, LoadingRows } from '@/components/admin/ui'
 
 export default function AdminStockPage() {
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Stock</h1>
-      <p className="mb-4 text-sm text-ls-gray-500">
-        L&apos;ajustement passe par le StockLedger (traçabilité). Delta négatif =
-        sortie, positif = entrée.
-      </p>
-      <Suspense fallback={<p className="text-sm text-ls-gray-500">Chargement…</p>}>
-        <StockTable />
+      <PageHeader
+        title="Stock"
+        description="Chaque ajustement est tracé dans le StockLedger. Delta négatif = sortie, positif = entrée."
+      />
+      <Suspense fallback={<LoadingRows />}>
+        <StockList />
       </Suspense>
     </div>
   )
 }
 
-async function StockTable() {
+async function StockList() {
   await connection()
   let rows: Awaited<ReturnType<typeof listStockOverview>> = []
   try {
@@ -27,39 +27,36 @@ async function StockTable() {
     console.error('[admin/stock]', err)
   }
 
+  if (rows.length === 0) return <EmptyState>Aucune variante.</EmptyState>
+
   return (
-    <div className="overflow-x-auto rounded border border-ls-gray-200 bg-white">
-      <table className="w-full text-sm">
-        <thead className="border-b border-ls-gray-200 bg-ls-gray-50 text-left text-xs uppercase text-ls-gray-500">
-          <tr>
-            <th className="px-3 py-2">Produit</th>
-            <th className="px-3 py-2">Variante</th>
-            <th className="px-3 py-2">SKU</th>
-            <th className="px-3 py-2">Stock / ajustement</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan={4} className="px-3 py-8 text-center text-ls-gray-400">
-                Aucune variante.
-              </td>
-            </tr>
-          )}
-          {rows.map((r) => (
-            <tr key={r.variantId} className="border-b border-ls-gray-100 last:border-0">
-              <td className="px-3 py-2">{r.productName ?? '—'}</td>
-              <td className="px-3 py-2 text-ls-gray-500">
-                {[r.size, r.color].filter(Boolean).join(' / ') || '—'}
-              </td>
-              <td className="px-3 py-2 text-ls-gray-500">{r.sku}</td>
-              <td className="px-3 py-2">
-                <StockAdjust variantId={r.variantId} stockQty={r.stockQty} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <CardList cols={2}>
+      {rows.map((r) => {
+        const variant = [r.size, r.color].filter(Boolean).join(' / ')
+        const low = r.stockQty === 0
+        return (
+          <Card key={r.variantId} className="gap-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-ls-gray-900">{r.productName ?? '—'}</p>
+                <p className="text-xs text-ls-gray-500">
+                  {r.sku}
+                  {variant ? ` · ${variant}` : ''}
+                </p>
+              </div>
+              <span
+                className={
+                  'shrink-0 rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums ' +
+                  (low ? 'bg-ls-danger-bg text-ls-danger' : 'bg-ls-gray-100 text-ls-gray-800')
+                }
+              >
+                {r.stockQty}
+              </span>
+            </div>
+            <StockAdjust variantId={r.variantId} stockQty={r.stockQty} />
+          </Card>
+        )
+      })}
+    </CardList>
   )
 }

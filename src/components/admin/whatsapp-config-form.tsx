@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { updateWhatsappConfig } from '@/lib/actions/admin/whatsapp-config'
+import { Panel, fieldInput, btnPrimary } from './ui'
 
 export function WhatsappConfigForm({
   numero,
@@ -30,34 +31,32 @@ export function WhatsappConfigForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex max-w-md flex-col gap-4 rounded border border-ls-gray-200 bg-white p-4">
-      <label className="flex flex-col gap-1 text-sm">
-        Numéro (format E.164)
-        <input
-          required
-          value={f.numero}
-          placeholder="+22670000000"
-          onChange={(e) => setF({ ...f, numero: e.target.value })}
-          className="rounded border border-ls-gray-300 px-2 py-1.5"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Lien wa.me
-        <input
-          required
-          value={f.lienWa}
-          placeholder="https://wa.me/22670000000"
-          onChange={(e) => setF({ ...f, lienWa: e.target.value })}
-          className="rounded border border-ls-gray-300 px-2 py-1.5"
-        />
-      </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-fit rounded bg-ls-gray-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-      >
-        Enregistrer
-      </button>
-    </form>
+    <Panel className="max-w-md">
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <label className="flex flex-col gap-1 text-xs font-medium text-ls-gray-500">
+          Numéro (format E.164)
+          <input
+            required
+            value={f.numero}
+            placeholder="+22670000000"
+            onChange={(e) => setF({ ...f, numero: e.target.value })}
+            className={fieldInput}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-ls-gray-500">
+          Lien wa.me
+          <input
+            required
+            value={f.lienWa}
+            placeholder="https://wa.me/22670000000"
+            onChange={(e) => setF({ ...f, lienWa: e.target.value })}
+            className={fieldInput}
+          />
+        </label>
+        <button type="submit" disabled={pending} className={btnPrimary + ' w-full sm:w-auto'}>
+          Enregistrer
+        </button>
+      </form>
+    </Panel>
   )
 }

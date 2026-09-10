@@ -1,20 +1,36 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
+import { Star } from 'lucide-react'
 import { listReviewsAdmin } from '@/lib/db/admin'
 import { ReviewModeration } from '@/components/admin/review-moderation'
+import { PageHeader, Card, CardList, EmptyState, LoadingRows } from '@/components/admin/ui'
 
 export default function AdminReviewsPage() {
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Avis</h1>
-      <Suspense fallback={<p className="text-sm text-ls-gray-500">Chargement…</p>}>
-        <ReviewsTable />
+      <PageHeader
+        title="Avis"
+        description="Un avis n'apparaît sur la boutique qu'une fois approuvé."
+      />
+      <Suspense fallback={<LoadingRows />}>
+        <ReviewsList />
       </Suspense>
     </div>
   )
 }
 
-async function ReviewsTable() {
+const STATUS_STYLE: Record<string, string> = {
+  pending: 'bg-ls-warning-bg text-ls-warning',
+  approved: 'bg-ls-success-bg text-ls-success',
+  rejected: 'bg-ls-danger-bg text-ls-danger',
+}
+const STATUS_LABEL: Record<string, string> = {
+  pending: 'En attente',
+  approved: 'Approuvé',
+  rejected: 'Rejeté',
+}
+
+async function ReviewsList() {
   await connection()
   let rows: Awaited<ReturnType<typeof listReviewsAdmin>> = []
   try {
@@ -23,39 +39,39 @@ async function ReviewsTable() {
     console.error('[admin/reviews]', err)
   }
 
+  if (rows.length === 0) return <EmptyState>Aucun avis.</EmptyState>
+
   return (
-    <div className="overflow-x-auto rounded border border-ls-gray-200 bg-white">
-      <table className="w-full text-sm">
-        <thead className="border-b border-ls-gray-200 bg-ls-gray-50 text-left text-xs uppercase text-ls-gray-500">
-          <tr>
-            <th className="px-3 py-2">Produit</th>
-            <th className="px-3 py-2">Client</th>
-            <th className="px-3 py-2">Note</th>
-            <th className="px-3 py-2">Avis</th>
-            <th className="px-3 py-2">Statut / action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan={5} className="px-3 py-8 text-center text-ls-gray-400">
-                Aucun avis.
-              </td>
-            </tr>
-          )}
-          {rows.map((r) => (
-            <tr key={r.id} className="border-b border-ls-gray-100 align-top last:border-0">
-              <td className="px-3 py-2">{r.productName ?? '—'}</td>
-              <td className="px-3 py-2 text-ls-gray-500">{r.customerName ?? '—'}</td>
-              <td className="px-3 py-2">{r.rating}/5</td>
-              <td className="max-w-xs px-3 py-2 text-ls-gray-600">{r.body}</td>
-              <td className="px-3 py-2">
-                <ReviewModeration id={r.id} status={r.status} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <CardList>
+      {rows.map((r) => (
+        <Card key={r.id}>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold text-ls-gray-900">{r.productName ?? '—'}</p>
+              <p className="text-xs text-ls-gray-500">par {r.customerName ?? '—'}</p>
+            </div>
+            <span className={'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ' + (STATUS_STYLE[r.status] ?? 'bg-ls-gray-100 text-ls-gray-600')}>
+              {STATUS_LABEL[r.status] ?? r.status}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-0.5" aria-label={`${r.rating} sur 5`}>
+            {Array.from({ length: 5 }, (_, i) => (
+              <Star
+                key={i}
+                size={16}
+                className={i < r.rating ? 'fill-ls-violet text-ls-violet' : 'text-ls-gray-300'}
+              />
+            ))}
+          </div>
+
+          {r.body && <p className="text-sm text-ls-gray-700">{r.body}</p>}
+
+          <div className="border-t border-ls-gray-100 pt-3">
+            <ReviewModeration id={r.id} status={r.status} />
+          </div>
+        </Card>
+      ))}
+    </CardList>
   )
 }
