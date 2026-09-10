@@ -43,7 +43,7 @@ const NAV = [
 
 const CONTACT = [
   { Icon: MapPin, text: '[Adresse — À COMPLÉTER]' },
-  { Icon: Phone, text: '[Téléphone / WhatsApp — À COMPLÉTER]' },
+  { Icon: Phone, text: '+226 60 55 44 00 (WhatsApp)' },
   { Icon: Mail, text: '[E-mail — À COMPLÉTER]' },
 ]
 
