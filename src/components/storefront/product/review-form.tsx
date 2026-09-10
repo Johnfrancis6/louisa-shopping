@@ -48,9 +48,12 @@ export function ReviewForm({ productId }: { productId: string }) {
               className="flex h-11 w-11 items-center justify-center"
             >
               <Star
-                className="h-5 w-5"
-                fill={value <= rating ? '#4F46E5' : 'none'}
-                color="#4F46E5"
+                className={
+                  'h-5 w-5 ' +
+                  (value <= rating
+                    ? 'fill-ls-violet text-ls-violet'
+                    : 'fill-none text-ls-gray-300')
+                }
               />
             </button>
           )
@@ -65,7 +68,7 @@ export function ReviewForm({ productId }: { productId: string }) {
         maxLength={2000}
       />
 
-      <Button type="submit" disabled={isPending} className="h-11 w-fit bg-ls-accent hover:bg-ls-accent-dark">
+      <Button type="submit" disabled={isPending} className="h-11 w-fit bg-ls-violet hover:bg-ls-violet-dark">
         Envoyer
       </Button>
     </form>

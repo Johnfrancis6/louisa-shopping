@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from 'next/cache'
-import { asc, eq } from 'drizzle-orm'
+import { asc, count, eq } from 'drizzle-orm'
 import { dbAnon } from '@/lib/db/client'
-import { category } from '@/lib/db/schema'
+import { category, products } from '@/lib/db/schema'
 import type { Category } from '@/types/catalog'
 
 /**
@@ -34,5 +34,30 @@ export async function getCategories(): Promise<Category[]> {
   } catch (err) {
     console.error('[data/categories] getCategories', err)
     return []
+  }
+}
+
+/**
+ * Nombre de produits actifs par catégorie — `{ [categoryId]: n }`.
+ * Sert aux compteurs « N articles » (grille catalogue, modale de recherche).
+ */
+export async function getCategoryProductCounts(): Promise<Record<string, number>> {
+  'use cache'
+  cacheLife('minutes')
+  cacheTag('categories', 'products', 'stock')
+
+  try {
+    const rows = await dbAnon
+      .select({ categoryId: products.categoryId, n: count() })
+      .from(products)
+      .where(eq(products.isActive, true))
+      .groupBy(products.categoryId)
+
+    const map: Record<string, number> = {}
+    for (const row of rows) map[row.categoryId] = Number(row.n)
+    return map
+  } catch (err) {
+    console.error('[data/categories] getCategoryProductCounts', err)
+    return {}
   }
 }

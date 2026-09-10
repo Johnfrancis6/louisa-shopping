@@ -8,7 +8,7 @@ export function DeliveryZones({ zones }: { zones: DeliveryZone[] }) {
   return (
     <section className="border-t border-ls-gray-200 px-4 py-6 md:px-12">
       <h2 className="flex items-center gap-2 text-ls-h2 text-ls-gray-900">
-        <Truck className="h-5 w-5 text-ls-accent" />
+        <Truck className="h-5 w-5 text-ls-gray-500" />
         Livraison
       </h2>
       <ul className="mt-4 flex flex-col gap-3">

@@ -26,9 +26,12 @@ export async function ReviewsSection({ productId }: { productId: string }) {
                 {Array.from({ length: 5 }, (_, i) => (
                   <Star
                     key={i}
-                    className="h-4 w-4"
-                    fill={i < review.rating ? '#4F46E5' : 'none'}
-                    color="#4F46E5"
+                    className={
+                      'h-4 w-4 ' +
+                      (i < review.rating
+                        ? 'fill-ls-violet text-ls-violet'
+                        : 'fill-none text-ls-gray-300')
+                    }
                   />
                 ))}
               </div>
@@ -50,7 +53,7 @@ export async function ReviewsSection({ productId }: { productId: string }) {
         <ReviewForm productId={productId} />
       ) : (
         <p className="mt-6 border-t border-ls-gray-200 pt-6 text-ls-body text-ls-gray-500">
-          <Link href="/connexion" className="text-ls-accent underline">
+          <Link href="/connexion" className="text-ls-gray-900 underline hover:text-ls-gray-600">
             Connectez-vous
           </Link>{' '}
           pour laisser un avis.

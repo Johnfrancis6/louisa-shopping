@@ -51,8 +51,8 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
       </div>
 
       {status === 'pending_whatsapp' && (
-        <div className="rounded-ls-card border border-ls-accent-light bg-ls-accent-light p-4">
-          <p className="text-ls-body text-ls-accent-dark">
+        <div className="rounded-ls-card border border-ls-gray-200 bg-ls-gray-50 p-4">
+          <p className="text-ls-body text-ls-gray-900">
             Dernière étape : confirmez votre commande avec le vendeur sur WhatsApp.
           </p>
           {waUrl ? (
@@ -60,13 +60,13 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
               href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 py-3 text-sm font-semibold text-white"
+              className="mt-3 flex items-center justify-center gap-2 rounded-full bg-ls-whatsapp hover:bg-ls-whatsapp-dark px-4 py-3 text-sm font-semibold text-white"
             >
               <MessageCircle size={20} />
               Confirmer sur WhatsApp
             </a>
           ) : (
-            <p className="mt-2 text-ls-label text-ls-accent-dark">
+            <p className="mt-2 text-ls-label text-ls-gray-500">
               Le vendeur vous contactera — numéro WhatsApp non configuré.
             </p>
           )}
@@ -113,7 +113,7 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
         </section>
       )}
 
-      <Link href="/compte" className="text-ls-body text-ls-accent underline">
+      <Link href="/compte" className="text-ls-body text-ls-gray-900 underline hover:text-ls-gray-600">
         Voir toutes mes commandes
       </Link>
     </div>

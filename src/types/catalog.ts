@@ -50,6 +50,9 @@ export type ProductDetail = Product & {
   tutorialUrl: string | null
 }
 
+/** Ordre d'affichage du catalogue. `nouveaute` = défaut (createdAt desc). */
+export type CatalogSort = 'nouveaute' | 'prix-asc' | 'prix-desc' | 'nom'
+
 export type CatalogFilters = {
   categorie?: string
   prixMin?: number
@@ -57,6 +60,7 @@ export type CatalogFilters = {
   couleurs?: string[]
   tailles?: string[]
   enStockUniquement?: boolean
+  tri?: CatalogSort
 }
 
 export type Review = {

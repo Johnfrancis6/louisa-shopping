@@ -10,6 +10,7 @@
 
 import { Redis } from '@upstash/redis'
 import { cookies } from 'next/headers'
+import { revalidateTag } from 'next/cache'
 import { dbAnon } from '@/lib/db/client'
 import { variants, products, media } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
@@ -101,6 +102,8 @@ async function loadCart(sessionId: string): Promise<Cart> {
 async function saveCart(cart: Cart): Promise<void> {
   cart.updatedAt = new Date().toISOString()
   await redis.set(cartKey(cart.sessionId), cart, { ex: CART_TTL })
+  // Invalide le compteur du badge panier (src/lib/data/cart.ts, tag 'cart').
+  revalidateTag('cart')
 }
 
 // ─────────────────────────────────────────────
@@ -264,6 +267,7 @@ export async function removeFromCart(
 export async function clearCart(): Promise<void> {
   const sessionId = await getOrCreateSessionId()
   await redis.del(cartKey(sessionId))
+  revalidateTag('cart')
 }
 
 /** Total panier en FCFA. */

@@ -8,6 +8,7 @@ code works*; these `docs/` files tell you *what to do next*.
 | [`RUN-LOCAL.md`](RUN-LOCAL.md) | Get the app running on your machine (dev server, DB, admin user). |
 | [`PRE-MERGE-CHECKLIST.md`](PRE-MERGE-CHECKLIST.md) | Ship `test/ci` → `main`. Ordered, with owners. |
 | [`FIXES.md`](FIXES.md) | Fix a specific known issue. Each entry has file paths, a recommended approach, effort, and whether it blocks the merge. |
+| [`design/README.md`](design/README.md) | Build or edit a **storefront** page and stay visually coherent with the home. Design tokens, components, section patterns, motion, and the Tailwind v4 `rounded-[--var]` gotcha. |
 
 ## Current state (2026-09-09)
 

@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from 'next/cache'
-import { and, asc, desc, eq, ilike, inArray } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, or } from 'drizzle-orm'
 import { dbAnon } from '@/lib/db/client'
 import {
   products,
@@ -42,6 +42,28 @@ function toVariant(v: VariantRow, basePrice: number, imageUrl: string | null): P
     unitPrice: v.priceOverride ?? basePrice,
     stock_qty: v.stockQty,
     imageUrl,
+  }
+}
+
+/** Prix d'appel d'un produit = plus petit prix variante. */
+function minPriceOf(product: Product): number {
+  return Math.min(...product.variants.map((v) => v.unitPrice))
+}
+
+/**
+ * Tri en mémoire de la liste déjà filtrée. `nouveaute` (défaut) conserve
+ * l'ordre SQL (createdAt desc). Tri stable : `sort` de V8 l'est.
+ */
+function sortProducts(list: Product[], tri: CatalogFilters['tri']): Product[] {
+  switch (tri) {
+    case 'prix-asc':
+      return [...list].sort((a, b) => minPriceOf(a) - minPriceOf(b))
+    case 'prix-desc':
+      return [...list].sort((a, b) => minPriceOf(b) - minPriceOf(a))
+    case 'nom':
+      return [...list].sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+    default:
+      return list
   }
 }
 
@@ -127,8 +149,15 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
   const q = query.trim()
   if (q.length < 2) return []
+  const pattern = `%${q}%`
 
   try {
+    // Match sur le nom du produit OU le SKU d'une de ses variantes.
+    const productIdsBySku = dbAnon
+      .select({ id: variants.productId })
+      .from(variants)
+      .where(ilike(variants.sku, pattern))
+
     const heads = await dbAnon
       .select({
         id: products.id,
@@ -139,7 +168,12 @@ export async function searchProducts(query: string): Promise<Product[]> {
         hasTutorial: products.hasTutorial,
       })
       .from(products)
-      .where(and(eq(products.isActive, true), ilike(products.name, `%${q}%`)))
+      .where(
+        and(
+          eq(products.isActive, true),
+          or(ilike(products.name, pattern), inArray(products.id, productIdsBySku)),
+        ),
+      )
       .orderBy(desc(products.createdAt))
       .limit(40)
 
@@ -164,7 +198,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
 export async function getProducts(
   filters: CatalogFilters,
   cursor: string | null,
-): Promise<{ items: Product[]; nextCursor: string | null }> {
+): Promise<{ items: Product[]; nextCursor: string | null; total: number }> {
   'use cache'
   cacheLife('minutes')
   cacheTag('products', 'stock')
@@ -190,7 +224,8 @@ export async function getProducts(
       )
       .orderBy(desc(products.createdAt))
 
-    const all = (await hydrate(heads)).filter((p) => matchesFilters(p, filters))
+    const filtered = (await hydrate(heads)).filter((p) => matchesFilters(p, filters))
+    const all = sortProducts(filtered, filters.tri)
 
     const start = cursor ? Math.max(0, Number(cursor) || 0) : 0
     const items = all.slice(start, start + PAGE_SIZE)
@@ -198,10 +233,11 @@ export async function getProducts(
     return {
       items,
       nextCursor: nextIndex < all.length ? String(nextIndex) : null,
+      total: all.length,
     }
   } catch (err) {
     console.error('[data/products] getProducts', err)
-    return { items: [], nextCursor: null }
+    return { items: [], nextCursor: null, total: 0 }
   }
 }
 

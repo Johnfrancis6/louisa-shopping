@@ -37,50 +37,48 @@ export function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-ls-card bg-ls-white shadow-ls-card transition-shadow md:hover:shadow-ls-card-hover">
+    <div className="ls-reveal rounded-ls-md bg-ls-white p-3 shadow-ls-card transition-[transform,box-shadow] duration-[var(--duration-ls-fast)] ease-[var(--ease-ls-out)] md:hover:-translate-y-0.5 md:hover:shadow-ls-card-hover">
       <Link href={`/produits/${product.slug}`} className="block">
-        <div className="relative aspect-square bg-ls-gray-50">
+        <p className="text-ls-body font-medium text-ls-gray-900">{product.name}</p>
+        <p className="text-ls-label text-ls-gray-500">{primaryVariant.sku}</p>
+
+        <div className="relative mt-2 aspect-square rounded-ls-sm bg-ls-gray-50">
           {primaryVariant.imageUrl && (
-            <Image
-              src={primaryVariant.imageUrl}
-              alt={product.name}
-              fill
-              sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
-              className="object-cover"
-            />
+            <div className="absolute inset-4">
+              <Image
+                src={primaryVariant.imageUrl}
+                alt={product.name}
+                fill
+                sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+                className="object-contain"
+              />
+            </div>
           )}
         </div>
       </Link>
 
-      <div className="p-4">
-        <Link href={`/produits/${product.slug}`} className="block">
-          <p className="text-ls-body font-medium text-ls-gray-900">{product.name}</p>
-          <p className="text-ls-label text-ls-gray-500">{primaryVariant.sku}</p>
-        </Link>
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-[19px] font-semibold text-ls-gray-900">{priceLabel}</span>
 
-        <div className="mt-3 flex items-center justify-between">
-          <span className="text-ls-price text-ls-gray-900">{priceLabel}</span>
-
-          {canQuickAdd ? (
-            <button
-              type="button"
-              onClick={handleQuickAdd}
-              disabled={isPending}
-              aria-label="Ajouter au panier"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ls-gray-900 text-ls-white transition-opacity disabled:opacity-50"
-            >
-              <ShoppingBag className="h-5 w-5" />
-            </button>
-          ) : (
-            <Link
-              href={`/produits/${product.slug}`}
-              aria-label="Voir le produit"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ls-gray-900 text-ls-white"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-          )}
-        </div>
+        {canQuickAdd ? (
+          <button
+            type="button"
+            onClick={handleQuickAdd}
+            disabled={isPending}
+            aria-label="Ajouter au panier"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ls-violet text-ls-white transition-[transform,opacity] duration-[var(--duration-ls-fast)] hover:scale-105 active:scale-95 disabled:opacity-50"
+          >
+            <ShoppingBag className="h-[18px] w-[18px]" />
+          </button>
+        ) : (
+          <Link
+            href={`/produits/${product.slug}`}
+            aria-label="Voir le produit"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ls-violet text-ls-white transition-transform duration-[var(--duration-ls-fast)] hover:scale-105 active:scale-95"
+          >
+            <ArrowRight className="h-[18px] w-[18px]" />
+          </Link>
+        )}
       </div>
     </div>
   )

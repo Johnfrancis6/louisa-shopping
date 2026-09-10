@@ -92,7 +92,7 @@ export function Footer() {
           <div>
             <Logo className="h-14 w-auto max-w-[180px]" />
             <p className="mt-3 max-w-xs text-ls-body text-ls-gray-500">
-              Boutique en ligne à [VILLE — À COMPLÉTER]. Vous commandez, on vous
+              Boutique en ligne . Vous commandez, on vous
               livre dans votre zone, et tout se confirme sur WhatsApp.
             </p>
             <div className="mt-4 flex gap-2">
@@ -142,17 +142,23 @@ export function Footer() {
         </div>
       </div>
 
-      {/* 3 · Barre légale — padding bas mobile pour dégager la bottom nav fixe */}
-      <div className="border-t border-ls-gray-200 px-4 pb-[calc(var(--ls-bottom-nav-h)+1.25rem)] pt-5 md:px-12 md:pb-5">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 text-ls-label text-ls-gray-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 Louisa Shopping</p>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            <span>[Mentions légales — À COMPLÉTER]</span>
-            <span>[CGV — À COMPLÉTER]</span>
-            <span>[Confidentialité — À COMPLÉTER]</span>
-          </div>
-        </div>
-      </div>
+      {/* 3 · Barre légale */}
+<div className="border-t border-ls-gray-200 px-4 pb-[calc(var(--ls-bottom-nav-h)+1.25rem)] pt-5 md:px-12 md:pb-5">
+  <div className="mx-auto flex max-w-6xl flex-col gap-2 text-ls-label text-ls-gray-500 sm:flex-row sm:items-center sm:justify-between">
+    <p>© 2026 Louisa Shopping</p>
+    <div className="flex flex-wrap gap-x-4 gap-y-1">
+      <Link href="/mentions-legales" className="hover:text-ls-violet-dark hover:underline">
+        Mentions légales
+      </Link>
+      <Link href="/cgv" className="hover:text-ls-violet-dark hover:underline">
+        CGV
+      </Link>
+      <Link href="/confidentialite" className="hover:text-ls-violet-dark hover:underline">
+        Confidentialité
+      </Link>
+    </div>
+  </div>
+</div>
     </footer>
   )
 }

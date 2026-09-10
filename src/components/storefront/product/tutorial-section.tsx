@@ -22,7 +22,7 @@ export function TutorialSection({
         rel="noopener noreferrer"
         className="mt-3 flex h-11 w-fit items-center gap-2 rounded-ls-btn border border-ls-gray-200 px-4 text-ls-body text-ls-gray-900 hover:bg-ls-gray-50"
       >
-        <ExternalLink className="h-4 w-4 text-ls-accent" />
+        <ExternalLink className="h-4 w-4 text-ls-gray-500" />
         Ouvrir le tutoriel
       </a>
     </section>

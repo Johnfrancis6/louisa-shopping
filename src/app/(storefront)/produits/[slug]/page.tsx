@@ -50,7 +50,7 @@ function ProductSkeleton() {
         <div className="ls-skeleton h-7 w-3/4 rounded" />
         <div className="ls-skeleton h-4 w-1/3 rounded" />
         <div className="ls-skeleton h-6 w-1/4 rounded" />
-        <div className="ls-skeleton mt-4 h-11 w-full rounded-[--radius-ls-btn]" />
+        <div className="ls-skeleton mt-4 h-11 w-full rounded-ls-btn" />
       </div>
     </div>
   )

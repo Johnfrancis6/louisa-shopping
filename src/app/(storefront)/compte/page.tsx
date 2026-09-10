@@ -46,7 +46,7 @@ async function AccountContent() {
         {orders.length === 0 ? (
           <p className="mt-3 text-ls-body text-ls-gray-500">
             Aucune commande pour l&apos;instant.{' '}
-            <Link href="/catalogue" className="text-ls-accent underline">
+            <Link href="/catalogue" className="text-ls-gray-900 underline hover:text-ls-gray-600">
               Voir le catalogue
             </Link>
           </p>
@@ -69,7 +69,7 @@ async function AccountContent() {
                           })
                         : ''}
                     </span>
-                    <span className="rounded-full bg-ls-accent-light px-2 py-0.5 text-[12px] font-medium text-ls-accent-dark">
+                    <span className="rounded-full bg-ls-gray-100 px-2 py-0.5 text-[12px] font-medium text-ls-gray-700">
                       {ORDER_STATUS_LABELS[order.status as OrderStatus] ?? order.status}
                     </span>
                   </div>

@@ -56,7 +56,7 @@ export function LoginForm() {
       <Button
         type="submit"
         disabled={loading}
-        className="h-11 bg-ls-accent text-ls-white hover:bg-ls-accent-dark"
+        className="h-11 bg-ls-violet text-ls-white hover:bg-ls-violet-dark"
       >
         {loading ? 'Connexion…' : 'Se connecter'}
       </Button>
@@ -65,7 +65,7 @@ export function LoginForm() {
         Pas encore de compte ?{' '}
         <Link
           href={`/inscription${next !== '/compte' ? `?next=${encodeURIComponent(next)}` : ''}`}
-          className="text-ls-accent underline"
+          className="text-ls-gray-900 underline hover:text-ls-gray-600"
         >
           Créer un compte
         </Link>

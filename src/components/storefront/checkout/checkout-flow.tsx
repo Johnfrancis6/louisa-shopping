@@ -133,7 +133,7 @@ export function CheckoutFlow({
 
           <Button
             type="submit"
-            className="h-11 bg-ls-accent text-ls-white hover:bg-ls-accent-dark"
+            className="h-11 bg-ls-violet text-ls-white hover:bg-ls-violet-dark"
           >
             Continuer
           </Button>
@@ -175,7 +175,7 @@ export function CheckoutFlow({
               <button
                 type="button"
                 onClick={() => setStep('adresse')}
-                className="text-ls-label text-ls-accent underline"
+                className="text-ls-label text-ls-gray-900 underline hover:text-ls-gray-600"
               >
                 Modifier
               </button>
@@ -197,7 +197,7 @@ export function CheckoutFlow({
             {PAYMENT_OPTIONS.map((opt) => (
               <label
                 key={opt.value}
-                className="flex items-center gap-3 rounded-[--radius-ls-input] border border-ls-gray-200 px-3 py-2.5 text-ls-body text-ls-gray-900"
+                className="flex items-center gap-3 rounded-ls-input border border-ls-gray-200 px-3 py-2.5 text-ls-body text-ls-gray-900"
               >
                 <input
                   type="radio"
@@ -220,7 +220,7 @@ export function CheckoutFlow({
               type="button"
               onClick={handleConfirm}
               disabled={loading}
-              className="h-11 bg-ls-accent text-ls-white hover:bg-ls-accent-dark"
+              className="h-11 bg-ls-violet text-ls-white hover:bg-ls-violet-dark"
             >
               {loading ? 'Création…' : 'Valider ma commande'}
             </Button>
