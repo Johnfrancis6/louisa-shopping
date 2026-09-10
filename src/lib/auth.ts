@@ -47,6 +47,14 @@ export const auth = betterAuth({
     requireEmailVerification: false, // pas de fournisseur email transactionnel confirmé
   },
 
+  // Better Auth ne fait confiance qu'à l'origine de BETTER_AUTH_URL par défaut,
+  // et rejette toute requête POST cross-origin ("Invalid origin", 403).
+  // `.env.local` pointe souvent BETTER_AUTH_URL sur l'URL Netlify → sign-in /
+  // sign-up / sign-out cassés dans le navigateur en dev local. On ajoute
+  // localhost explicitement (additif : les origines dérivées de BETTER_AUTH_URL
+  // restent de confiance).
+  trustedOrigins: ["http://localhost:3000"],
+
   user: {
     additionalFields: {
       phone: {
