@@ -13,7 +13,7 @@ const STYLES: Record<string, string> = {
 export function OrderStatusBadge({ status }: { status: string }) {
   return (
     <span
-      className={`inline-block rounded px-2 py-[2px] text-xs font-medium ${STYLES[status] ?? "bg-neutral-100 text-neutral-700"}`}
+      className={`inline-block rounded px-2 py-[2px] text-xs font-medium ${STYLES[status] ?? "bg-ls-gray-100 text-ls-gray-700"}`}
     >
       {ORDER_STATUS_LABELS[status as OrderStatus] ?? status}
     </span>

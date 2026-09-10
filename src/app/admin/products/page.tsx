@@ -13,7 +13,7 @@ export default function AdminProductsPage() {
   return (
     <div>
       <h1 className="mb-4 text-xl font-semibold">Catalogue</h1>
-      <Suspense fallback={<p className="text-sm text-neutral-500">Chargement…</p>}>
+      <Suspense fallback={<p className="text-sm text-ls-gray-500">Chargement…</p>}>
         <ProductsSection />
       </Suspense>
     </div>
@@ -36,9 +36,9 @@ async function ProductsSection() {
         <ProductCreateForm categories={categories.map((c) => ({ id: c.id, name: c.name }))} />
       </div>
 
-      <div className="overflow-x-auto rounded border border-neutral-200 bg-white">
+      <div className="overflow-x-auto rounded border border-ls-gray-200 bg-white">
         <table className="w-full text-sm">
-          <thead className="border-b border-neutral-200 bg-neutral-50 text-left text-xs uppercase text-neutral-500">
+          <thead className="border-b border-ls-gray-200 bg-ls-gray-50 text-left text-xs uppercase text-ls-gray-500">
             <tr>
               <th className="px-3 py-2">Nom</th>
               <th className="px-3 py-2">Catégorie</th>
@@ -50,29 +50,29 @@ async function ProductsSection() {
           <tbody>
             {products.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-neutral-400">
+                <td colSpan={5} className="px-3 py-8 text-center text-ls-gray-400">
                   Aucun produit.
                 </td>
               </tr>
             )}
             {products.map((p) => (
-              <tr key={p.id} className="border-b border-neutral-100 align-top last:border-0">
+              <tr key={p.id} className="border-b border-ls-gray-100 align-top last:border-0">
                 <td className="px-3 py-2">
                   <Link
                     href={`/admin/products/${p.id}`}
-                    className="font-medium text-neutral-900 hover:underline"
+                    className="font-medium text-ls-gray-900 hover:underline"
                   >
                     {p.name}
                   </Link>
-                  <div className="text-xs text-neutral-500">{p.slug}</div>
+                  <div className="text-xs text-ls-gray-500">{p.slug}</div>
                   <Link
                     href={`/admin/products/${p.id}`}
-                    className="text-xs text-neutral-500 hover:underline"
+                    className="text-xs text-ls-gray-500 hover:underline"
                   >
                     Gérer les images
                   </Link>
                 </td>
-                <td className="px-3 py-2 text-neutral-500">{p.categoryName ?? '—'}</td>
+                <td className="px-3 py-2 text-ls-gray-500">{p.categoryName ?? '—'}</td>
                 <td className="px-3 py-2">{formatPrice(p.basePrice)}</td>
                 <td className="px-3 py-2">
                   <ProductActiveToggle id={p.id} isActive={p.isActive} />
@@ -85,7 +85,7 @@ async function ProductsSection() {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-neutral-500">
+      <p className="mt-2 text-xs text-ls-gray-500">
         Gestion du stock des variantes : onglet Stock.
       </p>
     </>

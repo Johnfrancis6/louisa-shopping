@@ -7,7 +7,7 @@ export default function AdminReviewsPage() {
   return (
     <div>
       <h1 className="mb-4 text-xl font-semibold">Avis</h1>
-      <Suspense fallback={<p className="text-sm text-neutral-500">Chargement…</p>}>
+      <Suspense fallback={<p className="text-sm text-ls-gray-500">Chargement…</p>}>
         <ReviewsTable />
       </Suspense>
     </div>
@@ -24,9 +24,9 @@ async function ReviewsTable() {
   }
 
   return (
-    <div className="overflow-x-auto rounded border border-neutral-200 bg-white">
+    <div className="overflow-x-auto rounded border border-ls-gray-200 bg-white">
       <table className="w-full text-sm">
-        <thead className="border-b border-neutral-200 bg-neutral-50 text-left text-xs uppercase text-neutral-500">
+        <thead className="border-b border-ls-gray-200 bg-ls-gray-50 text-left text-xs uppercase text-ls-gray-500">
           <tr>
             <th className="px-3 py-2">Produit</th>
             <th className="px-3 py-2">Client</th>
@@ -38,17 +38,17 @@ async function ReviewsTable() {
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-3 py-8 text-center text-neutral-400">
+              <td colSpan={5} className="px-3 py-8 text-center text-ls-gray-400">
                 Aucun avis.
               </td>
             </tr>
           )}
           {rows.map((r) => (
-            <tr key={r.id} className="border-b border-neutral-100 align-top last:border-0">
+            <tr key={r.id} className="border-b border-ls-gray-100 align-top last:border-0">
               <td className="px-3 py-2">{r.productName ?? '—'}</td>
-              <td className="px-3 py-2 text-neutral-500">{r.customerName ?? '—'}</td>
+              <td className="px-3 py-2 text-ls-gray-500">{r.customerName ?? '—'}</td>
               <td className="px-3 py-2">{r.rating}/5</td>
-              <td className="max-w-xs px-3 py-2 text-neutral-600">{r.body}</td>
+              <td className="max-w-xs px-3 py-2 text-ls-gray-600">{r.body}</td>
               <td className="px-3 py-2">
                 <ReviewModeration id={r.id} status={r.status} />
               </td>

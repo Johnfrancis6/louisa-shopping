@@ -10,7 +10,7 @@ export default function AdminCategoriesPage() {
       <div className="mb-6">
         <CategoryCreateForm />
       </div>
-      <Suspense fallback={<p className="text-sm text-neutral-500">Chargement…</p>}>
+      <Suspense fallback={<p className="text-sm text-ls-gray-500">Chargement…</p>}>
         <CategoriesTable />
       </Suspense>
     </div>
@@ -27,9 +27,9 @@ async function CategoriesTable() {
   }
 
   return (
-    <div className="overflow-x-auto rounded border border-neutral-200 bg-white">
+    <div className="overflow-x-auto rounded border border-ls-gray-200 bg-white">
       <table className="w-full text-sm">
-        <thead className="border-b border-neutral-200 bg-neutral-50 text-left text-xs uppercase text-neutral-500">
+        <thead className="border-b border-ls-gray-200 bg-ls-gray-50 text-left text-xs uppercase text-ls-gray-500">
           <tr>
             <th className="px-3 py-2">Fond</th>
             <th className="px-3 py-2">Nom</th>
@@ -42,7 +42,7 @@ async function CategoriesTable() {
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={6} className="px-3 py-8 text-center text-neutral-400">
+              <td colSpan={6} className="px-3 py-8 text-center text-ls-gray-400">
                 Aucune catégorie.
               </td>
             </tr>

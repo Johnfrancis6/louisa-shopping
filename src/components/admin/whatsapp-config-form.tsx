@@ -30,7 +30,7 @@ export function WhatsappConfigForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex max-w-md flex-col gap-4 rounded border border-neutral-200 bg-white p-4">
+    <form onSubmit={submit} className="flex max-w-md flex-col gap-4 rounded border border-ls-gray-200 bg-white p-4">
       <label className="flex flex-col gap-1 text-sm">
         Numéro (format E.164)
         <input
@@ -38,7 +38,7 @@ export function WhatsappConfigForm({
           value={f.numero}
           placeholder="+22670000000"
           onChange={(e) => setF({ ...f, numero: e.target.value })}
-          className="rounded border border-neutral-300 px-2 py-1.5"
+          className="rounded border border-ls-gray-300 px-2 py-1.5"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -48,13 +48,13 @@ export function WhatsappConfigForm({
           value={f.lienWa}
           placeholder="https://wa.me/22670000000"
           onChange={(e) => setF({ ...f, lienWa: e.target.value })}
-          className="rounded border border-neutral-300 px-2 py-1.5"
+          className="rounded border border-ls-gray-300 px-2 py-1.5"
         />
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="w-fit rounded bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+        className="w-fit rounded bg-ls-gray-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
       >
         Enregistrer
       </button>

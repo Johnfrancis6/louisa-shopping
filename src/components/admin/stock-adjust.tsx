@@ -36,13 +36,13 @@ export function StockAdjust({ variantId, stockQty }: { variantId: string; stockQ
         onChange={(e) => setDelta(e.target.value)}
         placeholder="±"
         inputMode="numeric"
-        className="w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
+        className="w-16 rounded border border-ls-gray-300 px-2 py-1 text-sm"
       />
       <button
         type="button"
         disabled={pending}
         onClick={apply}
-        className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-40"
+        className="rounded border border-ls-gray-300 px-2 py-1 text-xs hover:bg-ls-gray-50 disabled:opacity-40"
       >
         Ajuster
       </button>

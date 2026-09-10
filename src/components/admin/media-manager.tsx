@@ -21,7 +21,7 @@ type MediaItem = {
 }
 
 const btn =
-  'inline-flex items-center gap-1 rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-40'
+  'inline-flex items-center gap-1 rounded border border-ls-gray-300 px-2 py-1 text-xs hover:bg-ls-gray-50 disabled:opacity-40'
 
 export function MediaManager({
   productId,
@@ -93,18 +93,18 @@ export function MediaManager({
           type="button"
           disabled={busy}
           onClick={() => fileInput.current?.click()}
-          className="inline-flex items-center gap-2 rounded bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded bg-ls-gray-900 px-3 py-2 text-sm text-white disabled:opacity-40"
         >
           <Upload size={15} />
           {uploading ? 'Envoi…' : 'Ajouter des images'}
         </button>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-ls-gray-500">
           JPG/PNG/WebP, 8 Mo max par fichier. La première image est l&apos;image principale.
         </p>
       </div>
 
       {images.length === 0 ? (
-        <p className="rounded border border-dashed border-neutral-300 px-3 py-10 text-center text-sm text-neutral-400">
+        <p className="rounded border border-dashed border-ls-gray-300 px-3 py-10 text-center text-sm text-ls-gray-400">
           Aucune image pour ce produit.
         </p>
       ) : (
@@ -112,9 +112,9 @@ export function MediaManager({
           {images.map((img, index) => (
             <li
               key={img.id}
-              className="flex flex-col gap-2 rounded border border-neutral-200 bg-white p-2"
+              className="flex flex-col gap-2 rounded border border-ls-gray-200 bg-white p-2"
             >
-              <div className="relative aspect-square overflow-hidden rounded bg-neutral-100">
+              <div className="relative aspect-square overflow-hidden rounded bg-ls-gray-100">
                 <Image
                   src={img.url}
                   alt={img.alt ?? ''}
@@ -123,7 +123,7 @@ export function MediaManager({
                   className="object-cover"
                 />
                 {index === 0 && (
-                  <span className="absolute left-1 top-1 rounded bg-neutral-900/85 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+                  <span className="absolute left-1 top-1 rounded bg-ls-gray-900/85 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
                     Principale
                   </span>
                 )}
@@ -166,7 +166,7 @@ export function MediaManager({
                 defaultValue={img.alt ?? ''}
                 placeholder="Texte alternatif"
                 disabled={busy}
-                className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
+                className="w-full rounded border border-ls-gray-300 px-2 py-1 text-xs"
                 onBlur={(e) => {
                   const value = e.target.value.trim()
                   if (value !== (img.alt ?? '')) {

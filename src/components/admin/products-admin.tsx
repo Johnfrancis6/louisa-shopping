@@ -8,7 +8,7 @@ import { createVariant } from '@/lib/actions/admin/variants'
 
 type CategoryOption = { id: string; name: string }
 
-const input = 'rounded border border-neutral-300 px-2 py-1.5 text-sm'
+const input = 'rounded border border-ls-gray-300 px-2 py-1.5 text-sm'
 
 export function ProductCreateForm({ categories }: { categories: CategoryOption[] }) {
   const router = useRouter()
@@ -36,7 +36,7 @@ export function ProductCreateForm({ categories }: { categories: CategoryOption[]
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-wrap items-end gap-3 rounded border border-neutral-200 bg-white p-4">
+    <form onSubmit={submit} className="flex flex-wrap items-end gap-3 rounded border border-ls-gray-200 bg-white p-4">
       <label className="flex flex-col gap-1 text-xs">
         Nom
         <input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={input} />
@@ -77,7 +77,7 @@ export function ProductCreateForm({ categories }: { categories: CategoryOption[]
       <button
         type="submit"
         disabled={pending || !f.categoryId}
-        className="rounded bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+        className="rounded bg-ls-gray-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
       >
         Ajouter
       </button>
@@ -100,7 +100,7 @@ export function ProductActiveToggle({ id, isActive }: { id: string; isActive: bo
           else toast.error(res.error ?? 'Échec')
         })
       }
-      className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-40"
+      className="rounded border border-ls-gray-300 px-2 py-1 text-xs hover:bg-ls-gray-50 disabled:opacity-40"
     >
       {isActive ? 'Actif' : 'Inactif'}
     </button>
@@ -118,7 +118,7 @@ export function VariantCreateForm({ productId }: { productId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs text-neutral-500 underline"
+        className="text-xs text-ls-gray-500 underline"
       >
         + variante
       </button>
@@ -154,10 +154,10 @@ export function VariantCreateForm({ productId }: { productId: string }) {
       <input placeholder="Couleur" value={f.color} onChange={(e) => setF({ ...f, color: e.target.value })} className={`${input} w-24`} />
       <input placeholder="Prix override" inputMode="numeric" value={f.priceOverride} onChange={(e) => setF({ ...f, priceOverride: e.target.value })} className={`${input} w-24`} />
       <input placeholder="Stock init." inputMode="numeric" value={f.initialStock} onChange={(e) => setF({ ...f, initialStock: e.target.value })} className={`${input} w-20`} />
-      <button type="submit" disabled={pending} className="rounded bg-neutral-900 px-2 py-1.5 text-xs text-white disabled:opacity-40">
+      <button type="submit" disabled={pending} className="rounded bg-ls-gray-900 px-2 py-1.5 text-xs text-white disabled:opacity-40">
         OK
       </button>
-      <button type="button" onClick={() => setOpen(false)} className="text-xs text-neutral-500">
+      <button type="button" onClick={() => setOpen(false)} className="text-xs text-ls-gray-500">
         annuler
       </button>
     </form>

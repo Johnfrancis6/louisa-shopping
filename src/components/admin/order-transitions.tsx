@@ -20,7 +20,7 @@ export function OrderTransitions({
   const next = allowedNextStatuses(status)
 
   if (next.length === 0) {
-    return <span className="text-xs text-neutral-400">—</span>
+    return <span className="text-xs text-ls-gray-400">—</span>
   }
 
   function go(target: OrderStatus) {
@@ -46,7 +46,7 @@ export function OrderTransitions({
           className={`rounded border px-2 py-1 text-xs font-medium disabled:opacity-40 ${
             target === 'cancelled'
               ? 'border-red-200 text-red-700 hover:bg-red-50'
-              : 'border-neutral-300 hover:bg-neutral-50'
+              : 'border-ls-gray-300 hover:bg-ls-gray-50'
           }`}
         >
           {ORDER_STATUS_LABELS[target]}

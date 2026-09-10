@@ -1,20 +1,20 @@
 // src/components/storefront/layout/cart-badge.tsx
-import { peekCart } from '@/lib/actions/cart'
+import { getCartBadgeCount } from '@/lib/data/cart'
 
 /**
- * Pastille compteur panier. Lit le panier Redis en lecture seule (peekCart —
- * jamais de cookie créé ici). Composant dynamique : toujours sous <Suspense>
- * (cacheComponents actif). Le compte fait foi côté serveur uniquement.
+ * Pastille compteur panier. Lecture cachée (tag `cart`, bustée par les
+ * mutations panier → le badge se met à jour dès la fin de l'action).
+ * Composant dynamique (lit le cookie de session) : toujours sous <Suspense>.
  */
 export async function CartBadge() {
-  const cart = await peekCart()
-  const count = cart.items.reduce((n, i) => n + i.qty, 0)
+  const count = await getCartBadgeCount()
 
   if (count === 0) return null
 
   return (
     <span
-      className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ls-danger px-1 text-[10px] font-medium leading-none text-white"
+      key={count}
+      className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ls-danger px-1 text-[10px] font-medium leading-none text-white animate-in zoom-in-50 duration-[var(--duration-ls-bounce)] ease-[var(--ease-ls-out)]"
       aria-label={`${count} article${count > 1 ? 's' : ''} dans le panier`}
     >
       {count > 99 ? '99+' : count}

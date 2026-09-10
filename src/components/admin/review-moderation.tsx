@@ -22,7 +22,7 @@ export function ReviewModeration({ id, status }: { id: string; status: string })
   }
 
   if (status !== 'pending') {
-    return <span className="text-xs text-neutral-400">{status}</span>
+    return <span className="text-xs text-ls-gray-400">{status}</span>
   }
 
   return (

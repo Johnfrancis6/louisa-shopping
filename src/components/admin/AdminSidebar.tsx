@@ -11,7 +11,7 @@ const NAV = [
 
 export function AdminSidebar() {
   return (
-    <nav className="flex w-52 shrink-0 flex-col gap-1 bg-neutral-900 p-4 text-white">
+    <nav className="flex w-52 shrink-0 flex-col gap-1 bg-ls-gray-900 p-4 text-white">
       <Link href="/admin" className="mb-2 px-3 text-sm font-semibold uppercase tracking-wide text-white/60">
         Louisa · Admin
       </Link>

@@ -2,6 +2,8 @@ import { Suspense } from 'react'
 import { Navbar } from '@/components/storefront/layout/navbar'
 import { MobileBottomNav } from '@/components/storefront/layout/mobile-bottom-nav'
 import { CartBadge, CartBadgeSkeleton } from '@/components/storefront/layout/cart-badge'
+import { Footer } from '@/components/storefront/layout/footer'
+import { SearchProvider } from '@/components/storefront/search/search-modal'
 
 /**
  * Layout du groupe (storefront) : homepage, catalogue, fiche produit, panier,
@@ -15,21 +17,26 @@ export default function StorefrontLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-svh flex-col bg-ls-gray-50">
-      <Navbar />
+    <SearchProvider>
+      <div className="flex min-h-svh flex-col bg-ls-gray-50">
+        <Navbar />
 
-      {/* pb-20 : réserve l'espace de la bottom nav mobile fixe (h-16 + safe-area) */}
-      <main className="min-h-[calc(100vh-3.5rem)] flex-1 pb-20 md:pb-0">
-        {children}
-      </main>
+        {/* L'espace de la bottom nav mobile fixe est réservé par le footer
+            (padding bas calé sur --ls-bottom-nav-h). */}
+        <main className="min-h-[calc(100svh-3.5rem)] flex-1">
+          {children}
+        </main>
 
-      <MobileBottomNav
-        cartBadge={
-          <Suspense fallback={<CartBadgeSkeleton />}>
-            <CartBadge />
-          </Suspense>
-        }
-      />
-    </div>
+        <Footer />
+
+        <MobileBottomNav
+          cartBadge={
+            <Suspense fallback={<CartBadgeSkeleton />}>
+              <CartBadge />
+            </Suspense>
+          }
+        />
+      </div>
+    </SearchProvider>
   )
 }

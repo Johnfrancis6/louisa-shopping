@@ -15,12 +15,12 @@ export default function AdminOrdersPage() {
         <h1 className="text-xl font-semibold">Commandes</h1>
         <Link
           href="/admin/orders/export"
-          className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50"
+          className="rounded border border-ls-gray-300 px-3 py-1.5 text-sm hover:bg-ls-gray-50"
         >
           Export CSV
         </Link>
       </div>
-      <Suspense fallback={<p className="text-sm text-neutral-500">Chargement…</p>}>
+      <Suspense fallback={<p className="text-sm text-ls-gray-500">Chargement…</p>}>
         <OrdersTable />
       </Suspense>
     </div>
@@ -37,9 +37,9 @@ async function OrdersTable() {
   }
 
   return (
-    <div className="overflow-x-auto rounded border border-neutral-200 bg-white">
+    <div className="overflow-x-auto rounded border border-ls-gray-200 bg-white">
       <table className="w-full text-sm">
-        <thead className="border-b border-neutral-200 bg-neutral-50 text-left text-xs uppercase text-neutral-500">
+        <thead className="border-b border-ls-gray-200 bg-ls-gray-50 text-left text-xs uppercase text-ls-gray-500">
           <tr>
             <th className="px-3 py-2">Date</th>
             <th className="px-3 py-2">Client</th>
@@ -54,7 +54,7 @@ async function OrdersTable() {
         <tbody>
           {orders.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-neutral-400">
+              <td colSpan={8} className="px-3 py-8 text-center text-ls-gray-400">
                 Aucune commande.
               </td>
             </tr>
@@ -64,32 +64,32 @@ async function OrdersTable() {
             const count = items.reduce((n, it) => n + it.qty, 0)
             const address = readDeliveryAddress(o.deliveryAddress)
             return (
-              <tr key={o.id} className="border-b border-neutral-100 align-top last:border-0">
-                <td className="whitespace-nowrap px-3 py-2 text-neutral-500">
+              <tr key={o.id} className="border-b border-ls-gray-100 align-top last:border-0">
+                <td className="whitespace-nowrap px-3 py-2 text-ls-gray-500">
                   {o.createdAt ? new Date(o.createdAt).toLocaleDateString('fr-FR') : ''}
                 </td>
                 <td className="px-3 py-2">
                   <div>{o.customerName ?? '—'}</div>
-                  <div className="text-xs text-neutral-500">{o.customerPhone ?? ''}</div>
+                  <div className="text-xs text-ls-gray-500">{o.customerPhone ?? ''}</div>
                 </td>
-                <td className="px-3 py-2 text-neutral-600">
+                <td className="px-3 py-2 text-ls-gray-600">
                   {address ? (
                     <div className="max-w-[16rem]">
                       <div>{address.city}</div>
-                      <div className="text-xs text-neutral-500">
+                      <div className="text-xs text-ls-gray-500">
                         {address.fullName} · {address.phone}
                       </div>
                       {address.directions && (
-                        <div className="text-xs text-neutral-400">{address.directions}</div>
+                        <div className="text-xs text-ls-gray-400">{address.directions}</div>
                       )}
                     </div>
                   ) : (
-                    <span className="text-neutral-400">—</span>
+                    <span className="text-ls-gray-400">—</span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-neutral-500">{count}</td>
+                <td className="px-3 py-2 text-ls-gray-500">{count}</td>
                 <td className="px-3 py-2 font-medium">{formatPrice(o.total)}</td>
-                <td className="px-3 py-2 text-neutral-500">
+                <td className="px-3 py-2 text-ls-gray-500">
                   {PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}
                 </td>
                 <td className="px-3 py-2">

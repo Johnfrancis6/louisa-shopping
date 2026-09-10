@@ -13,10 +13,10 @@ export default function AdminProductDetailPage({
 }) {
   return (
     <div className="max-w-3xl">
-      <Link href="/admin/products" className="text-sm text-neutral-500 hover:underline">
+      <Link href="/admin/products" className="text-sm text-ls-gray-500 hover:underline">
         ← Catalogue
       </Link>
-      <Suspense fallback={<p className="mt-4 text-sm text-neutral-500">Chargement…</p>}>
+      <Suspense fallback={<p className="mt-4 text-sm text-ls-gray-500">Chargement…</p>}>
         <ProductDetail params={params} />
       </Suspense>
     </div>
@@ -36,14 +36,14 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
     <>
       <div className="mt-2 mb-6">
         <h1 className="text-xl font-semibold">{product.name}</h1>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-ls-gray-500">
           {product.slug} · {product.categoryName ?? '—'} · {formatPrice(product.basePrice)}
           {product.isActive ? '' : ' · inactif'}
         </p>
       </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ls-gray-500">
           Images
         </h2>
         <MediaManager productId={id} images={images} />
