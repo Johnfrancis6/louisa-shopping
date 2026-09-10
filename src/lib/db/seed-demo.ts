@@ -8,7 +8,7 @@
  *  - fiche produit (images multiples, variantes, rupture de stock, tutoriel)
  *  - recherche (nom + SKU)
  *  - avis produit (approuvés visibles, en attente / rejetés pour la modération)
- *  - back-office commandes : une commande dans chaque statut du diagramme §F
+ *  - back-office commandes : une commande dans chaque statut du flux simplifié
  *  - stock_ledger + variant.stock_qty cohérents avec les commandes décrémentées
  *  - wishlist, adresses client pré-remplies
  *
@@ -331,9 +331,10 @@ const CUSTOMERS: CustomerSpec[] = [
 ];
 
 // ───────────────────────────────────────────────────────────────────────────
-// Commandes de démo — une par statut du diagramme §F.
+// Commandes de démo — couvre les 4 statuts du flux simplifié
+// (pending_whatsapp / confirmed / delivered / cancelled).
 // `variant` = `<slug produit>#<index variante>` ; `decremented` = le stock a
-// réellement été retiré (transition confirmed→processing franchie).
+// réellement été retiré (transition confirmed→delivered franchie).
 // ───────────────────────────────────────────────────────────────────────────
 
 type OrderSpec = {
@@ -371,11 +372,10 @@ const ORDERS: OrderSpec[] = [
   {
     key: "o3",
     customer: "moussa",
-    status: "processing",
+    status: "confirmed",
     payment: "mobile_money_moov",
     whatsappRef: "WA-2026-0138",
     daysAgo: 4,
-    decremented: true,
     lines: [{ variant: "demo-chemise-lin-homme#1", qty: 2 }],
   },
   {
@@ -391,7 +391,7 @@ const ORDERS: OrderSpec[] = [
   {
     key: "o5",
     customer: "fatou",
-    status: "shipped",
+    status: "delivered",
     payment: "mobile_money_orange",
     whatsappRef: "WA-2026-0135",
     daysAgo: 5,
@@ -703,7 +703,7 @@ async function main() {
     );
 
     // stock_ledger + décrément réel uniquement si la commande a franchi
-    // confirmed→processing (règle §C : seul moment où le stock bouge).
+    // confirmed→delivered (seul moment du flux où le stock bouge).
     if (o.decremented) {
       for (const l of lines) {
         await db.insert(stockLedger).values({

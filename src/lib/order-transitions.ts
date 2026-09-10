@@ -1,16 +1,23 @@
 /**
  * src/lib/order-transitions.ts
- * Diagramme d'états des commandes — SOURCE UNIQUE (contrat v2.5 §F).
+ * Diagramme d'états des commandes — SOURCE UNIQUE.
  * Utilisé par la Server Action de transition (orders.ts) ET par la façade
  * Admin (admin/orders.ts) pour désactiver les boutons impossibles.
+ *
+ * Flux simplifié (2026-09) — l'admin ne touche la commande qu'à deux moments :
+ *   pending_whatsapp → confirmed   (valide la commande reçue sur WhatsApp)
+ *   confirmed        → delivered   (marque livrée — SEUL moment où le stock bouge)
+ * `cancelled` reste accessible tant que le stock n'a pas bougé
+ * (depuis pending_whatsapp ou confirmed). `processing` / `shipped` sont des
+ * statuts hérités : plus produits, sans transition sortante.
  */
 import type { OrderStatus } from '@/lib/db/schema'
 
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending_whatsapp: ['confirmed'],
-  confirmed: ['processing', 'cancelled'],
-  processing: ['shipped', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
+  pending_whatsapp: ['confirmed', 'cancelled'],
+  confirmed: ['delivered', 'cancelled'],
+  processing: [], // hérité — flux simplifié
+  shipped: [], // hérité — flux simplifié
   delivered: [],
   cancelled: [],
 }

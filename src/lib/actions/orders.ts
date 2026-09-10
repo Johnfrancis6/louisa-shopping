@@ -3,17 +3,14 @@
  * Agent : Logique métier
  * Rôle  : Toutes les transitions Order.status, mutations StockLedger, revalidateTag().
  *
- * Diagramme d'états (contrat §F v2.5) :
- *   pending_whatsapp → confirmed       (admin uniquement)
- *   confirmed        → processing      (admin — décrémente StockLedger reason='order')
+ * Diagramme d'états (flux simplifié 2026-09) :
+ *   pending_whatsapp → confirmed       (admin — valide la commande WhatsApp)
+ *   pending_whatsapp → cancelled       (admin — aucun stock à toucher)
+ *   confirmed        → delivered       (admin — décrémente StockLedger reason='order')
  *   confirmed        → cancelled       (admin — aucun stock à recréditer, jamais décrémenté)
- *   processing       → shipped         (admin)
- *   processing       → cancelled       (admin — recrédite StockLedger reason='cancellation')
- *   shipped          → delivered       (admin — validation manuelle)
- *   shipped          → cancelled       (admin — recrédite StockLedger reason='return')
  *
  * Règles strictes :
- *  - StockLedger décrémenté UNIQUEMENT à confirmed→processing.
+ *  - StockLedger décrémenté UNIQUEMENT à confirmed→delivered.
  *  - revalidateTag() appelé UNIQUEMENT ici (jamais depuis UI ni Admin directement).
  *  - dbAdmin pour tout (mutations ET lectures) : `order`/`order_item`/
  *    `stock_ledger` sont deny-by-default pour dbAnon. Le scoping propriétaire
@@ -222,7 +219,7 @@ export async function adminListOrders(status?: OrderStatus) {
 
 /**
  * pending_whatsapp → confirmed
- * Aucun impact stock.
+ * Aucun impact stock (le stock ne bouge qu'à la livraison).
  */
 export async function confirmOrder(orderId: string): Promise<ActionResult> {
   const authResult = await requireAdmin()
@@ -248,79 +245,9 @@ export async function confirmOrder(orderId: string): Promise<ActionResult> {
 }
 
 /**
- * confirmed → processing
- * Décrémente StockLedger (reason='order') + revalidateTag().
- * Vérification solde ≥ 0 avant décrémentation.
- */
-export async function processOrder(orderId: string): Promise<ActionResult> {
-  const authResult = await requireAdmin()
-  if (isActionResult(authResult)) return authResult
-
-  const [order] = await dbAdmin
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1)
-
-  if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'confirmed') {
-    return { success: false, error: `Transition invalide : ${order.status} → processing` }
-  }
-
-  try {
-    await dbAdmin.transaction(async (tx) => {
-      // Décrémente stock (seul endroit où c'est autorisé)
-      await applyStockDelta(tx, orderId, -1, 'order')
-
-      // Mise à jour statut
-      await tx
-        .update(orders)
-        .set({ status: 'processing' })
-        .where(eq(orders.id, orderId))
-    })
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Erreur lors du traitement',
-    }
-  }
-
-  // revalidateTag() — hors transaction, après commit
-  await revalidateOrderStock(orderId)
-
-  return { success: true }
-}
-
-/**
- * processing → shipped
- * Aucun impact stock.
- */
-export async function shipOrder(orderId: string): Promise<ActionResult> {
-  const authResult = await requireAdmin()
-  if (isActionResult(authResult)) return authResult
-
-  const [order] = await dbAdmin
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1)
-
-  if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'processing') {
-    return { success: false, error: `Transition invalide : ${order.status} → shipped` }
-  }
-
-  await dbAdmin
-    .update(orders)
-    .set({ status: 'shipped' })
-    .where(eq(orders.id, orderId))
-
-  return { success: true }
-}
-
-/**
- * shipped → delivered
- * Validation manuelle admin — aucun impact stock.
+ * confirmed → delivered
+ * SEUL moment où le stock bouge : décrémente StockLedger (reason='order') +
+ * revalidateTag(). Vérification solde ≥ 0 avant décrémentation.
  */
 export async function deliverOrder(orderId: string): Promise<ActionResult> {
   const authResult = await requireAdmin()
@@ -333,13 +260,55 @@ export async function deliverOrder(orderId: string): Promise<ActionResult> {
     .limit(1)
 
   if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'shipped') {
+  if (order.status !== 'confirmed') {
     return { success: false, error: `Transition invalide : ${order.status} → delivered` }
+  }
+
+  try {
+    await dbAdmin.transaction(async (tx) => {
+      // Décrémente le stock (seul endroit du flux où c'est autorisé)
+      await applyStockDelta(tx, orderId, -1, 'order')
+
+      await tx
+        .update(orders)
+        .set({ status: 'delivered' })
+        .where(eq(orders.id, orderId))
+    })
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Erreur lors de la livraison',
+    }
+  }
+
+  // revalidateTag() — hors transaction, après commit
+  await revalidateOrderStock(orderId)
+
+  return { success: true }
+}
+
+/**
+ * pending_whatsapp → cancelled
+ * Aucun stock touché (jamais décrémenté à ce stade).
+ */
+export async function cancelPendingOrder(orderId: string): Promise<ActionResult> {
+  const authResult = await requireAdmin()
+  if (isActionResult(authResult)) return authResult
+
+  const [order] = await dbAdmin
+    .select({ status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+
+  if (!order) return { success: false, error: 'Commande introuvable' }
+  if (order.status !== 'pending_whatsapp') {
+    return { success: false, error: `Transition invalide : ${order.status} → cancelled` }
   }
 
   await dbAdmin
     .update(orders)
-    .set({ status: 'delivered' })
+    .set({ status: 'cancelled' })
     .where(eq(orders.id, orderId))
 
   return { success: true }
@@ -348,7 +317,6 @@ export async function deliverOrder(orderId: string): Promise<ActionResult> {
 /**
  * confirmed → cancelled
  * Aucun stock à recréditer (jamais décrémenté à ce stade).
- * Arbitrage regles-coordination §9 : transition valide.
  */
 export async function cancelConfirmedOrder(orderId: string): Promise<ActionResult> {
   const authResult = await requireAdmin()
@@ -371,86 +339,6 @@ export async function cancelConfirmedOrder(orderId: string): Promise<ActionResul
     .where(eq(orders.id, orderId))
 
   // Pas de StockLedger — aucune décrémentation n'a eu lieu à ce stade
-  return { success: true }
-}
-
-/**
- * processing → cancelled
- * Recrédite StockLedger (reason='cancellation') + revalidateTag().
- */
-export async function cancelProcessingOrder(orderId: string): Promise<ActionResult> {
-  const authResult = await requireAdmin()
-  if (isActionResult(authResult)) return authResult
-
-  const [order] = await dbAdmin
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1)
-
-  if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'processing') {
-    return { success: false, error: `Transition invalide : ${order.status} → cancelled` }
-  }
-
-  try {
-    await dbAdmin.transaction(async (tx) => {
-      // Recrédite stock
-      await applyStockDelta(tx, orderId, +1, 'cancellation')
-
-      await tx
-        .update(orders)
-        .set({ status: 'cancelled' })
-        .where(eq(orders.id, orderId))
-    })
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Erreur lors de l\'annulation',
-    }
-  }
-
-  await revalidateOrderStock(orderId)
-  return { success: true }
-}
-
-/**
- * shipped → cancelled (retour)
- * Recrédite StockLedger (reason='return') + revalidateTag().
- */
-export async function returnShippedOrder(orderId: string): Promise<ActionResult> {
-  const authResult = await requireAdmin()
-  if (isActionResult(authResult)) return authResult
-
-  const [order] = await dbAdmin
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1)
-
-  if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'shipped') {
-    return { success: false, error: `Transition invalide : ${order.status} → cancelled` }
-  }
-
-  try {
-    await dbAdmin.transaction(async (tx) => {
-      // Recrédite stock (retour)
-      await applyStockDelta(tx, orderId, +1, 'return')
-
-      await tx
-        .update(orders)
-        .set({ status: 'cancelled' })
-        .where(eq(orders.id, orderId))
-    })
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Erreur lors du retour',
-    }
-  }
-
-  await revalidateOrderStock(orderId)
   return { success: true }
 }
 
@@ -485,12 +373,9 @@ export async function transitionOrder(
 
   const handlers: Record<string, TransitionHandler> = {
     'pending_whatsapp->confirmed': () => confirmOrder(orderId),
-    'confirmed->processing': () => processOrder(orderId),
+    'pending_whatsapp->cancelled': () => cancelPendingOrder(orderId),
+    'confirmed->delivered': () => deliverOrder(orderId),
     'confirmed->cancelled': () => cancelConfirmedOrder(orderId),
-    'processing->shipped': () => shipOrder(orderId),
-    'processing->cancelled': () => cancelProcessingOrder(orderId),
-    'shipped->delivered': () => deliverOrder(orderId),
-    'shipped->cancelled': () => returnShippedOrder(orderId),
   }
 
   const handler = handlers[`${from}->${targetStatus}`]
