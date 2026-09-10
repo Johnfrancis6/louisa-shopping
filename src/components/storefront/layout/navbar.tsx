@@ -6,6 +6,7 @@ import { Logo } from './logo'
 import { CartBadge, CartBadgeSkeleton } from './cart-badge'
 import { NavDrawer } from './nav-drawer'
 import { NavbarLinks } from './nav-links'
+import { AdminNavLink } from './admin-nav-link'
 import { SearchTrigger } from '@/components/storefront/search/search-modal'
 
 /**
@@ -46,6 +47,8 @@ export function Navbar() {
           >
             <User size={22} />
           </Link>
+
+          <AdminNavLink />
 
           <NavDrawer />
         </nav>
