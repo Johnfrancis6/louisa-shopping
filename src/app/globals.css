@@ -1,4 +1,7 @@
-@import "tailwindcss";
+/* source("../") : ne scanner que src/ pour la détection automatique des classes
+   — sinon Tailwind ramasse les exemples littéraux dans docs/*.md / CLAUDE.md
+   (ex. `rounded-[--radius-ls-md]`) et compile des règles cassées. */
+@import "tailwindcss" source("../");
 @import "./design-system.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -81,7 +84,8 @@
    * shadcn n'a qu'un --radius global ; on le cale sur le cran "sm" (boutons,
    * toggles — les composants shadcn les plus fréquents). Les cards / modales /
    * inputs appliquent leur propre rounded-ls-{md,lg,…} explicitement.
-   * NB : utiliser rounded-ls-md, PAS rounded-[--radius-ls-md] (cf. docs/design/tokens.md).
+   * NB : utiliser les utilitaires rounded-ls-* (jamais la syntaxe bracket-var
+   * pour les rayons — cf. docs/design/tokens.md, piège Tailwind v4).
    */
   --radius: var(--radius-ls-sm);
 }
