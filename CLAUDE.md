@@ -50,7 +50,7 @@ Node 22. No test framework is configured — there are no tests and no test runn
 
 Single source of truth for every table; import types from here, never redefine. Conventions: `uuid` PKs (`defaultRandom()`), snake_case SQL / camelCase TS, `createdAt`/`updatedAt` on everything. **All money is integer FCFA** (no decimals — CFA franc has no practical subunit). Lowercase table exports (`category`, `product`, …) plus plural aliases (`categories`, `products`, …) kept for back-compat with older actions.
 
-Domain model: `category` (self-referential tree) → `product` → `variant` (SKU, stock, price override). `order` freezes an `itemsSnapshot` jsonb at creation. `stock_ledger` is the **only** source of truth for stock movements — stock is **not** decremented at checkout, only on `confirmed → processing`. `zone` + `product.deliveryZones` jsonb are hybrid (jsonb entry may reference a `zone.id` or stand alone). `whatsapp_config` is a singleton (`CHECK id = 1`).
+Domain model: `category` (self-referential tree) → `product` → `variant` (SKU, stock, price override). `order` freezes an `itemsSnapshot` jsonb at creation. Lifecycle (`src/lib/order-transitions.ts`): `pending_whatsapp → confirmed → delivered`, plus `cancelled` from `pending_whatsapp`/`confirmed`. `stock_ledger` is the **only** source of truth for stock movements — stock is **not** decremented at checkout, only on `confirmed → delivered`. (`processing`/`shipped` remain in the enum for historical rows.) `zone` + `product.deliveryZones` jsonb are hybrid (jsonb entry may reference a `zone.id` or stand alone). `whatsapp_config` is a singleton (`CHECK id = 1`).
 
 ### Identity — Better Auth
 
@@ -71,6 +71,7 @@ Route group `src/app/(admin)/`. Reads: `src/lib/db/admin.ts` (joins/aggregates, 
 
 ### Layout / UI
 
+- **Storefront design language: see [`docs/design/`](docs/design/README.md).** Read it before touching any storefront page — it carries the non-negotiables (violet `#B818C9` primary, `#25D366` reserved for the WhatsApp confirm button only, the `rounded-ls-*` radius scale, no Framer Motion) and a **Tailwind v4 gotcha**: `rounded-[--radius-ls-md]` renders square corners — always `rounded-ls-md`. The home page (`/`) is the coherence reference.
 - Path alias `@/*` → `src/*`.
 - Tailwind v4 (CSS-config via `@tailwindcss/postcss`, no `tailwind.config.ts`), shadcn/ui (`components.json`, `src/components/ui/`), `@base-ui/react`, both `@phosphor-icons/react` and `lucide-react`, Embla carousel, `sonner` toasts.
 - `cn` helper: `src/lib/util.ts` re-exports from the `cn` package. (Note: `src/lib/utils/` is a *different* directory of domain helpers — `format.ts`, `color.ts`, `contrast.ts`, `catalog-filters.ts`.)
