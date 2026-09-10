@@ -1,20 +1,38 @@
-// src/components/storefront/logo.tsx
+// src/components/storefront/layout/logo.tsx
 import Link from 'next/link'
-import { playfairDisplay } from '@/app/fonts'
+import Image from 'next/image'
+import { cn } from '@/lib/utils'
+import logo from './logo.png'
 
 /**
- * Seul composant autorisé à utiliser Playfair Display (ui-reference.md §1.2).
- * Couleur : encre (--color-ls-gray-900). Storefront monochrome (audit design 2026-09),
- * 1 seul token à changer le jour où la couleur finale du logo est tranchée.
+ * Logo Louisa Shopping — `./logo.png` importé en statique (Next connaît les
+ * dimensions intrinsèques → aucun CLS).
+ *
+ * ⚠️ Taille = la hauteur `h-[…]`. Tailwind n'a pas de `h-13` / `h-15` : utiliser
+ * un pas valide (`h-10`, `h-11`, `h-12`, `h-14`) ou une valeur arbitraire
+ * `h-[44px]`. Réglage par défaut ci-dessous (navbar + drawer) ; le footer
+ * surcharge via `className`. La navbar fait 56px de haut : garder le logo ≤ 48px.
  */
-export function Logo({ className }: { className?: string }) {
+export function Logo({
+  className,
+  priority = false,
+}: {
+  className?: string
+  priority?: boolean
+}) {
   return (
     <Link
       href="/"
-      className={`${playfairDisplay.className} text-[20px] font-medium text-ls-gray-900 ${className ?? ''}`}
       aria-label="Louisa Shopping — accueil"
+      className="inline-flex shrink-0 items-center"
     >
-      Louisa
+      <Image
+        src={logo}
+        alt="Louisa Shopping"
+        priority={priority}
+        sizes="120px"
+        className={cn('h-11 w-auto max-w-[140px] object-contain', className)}
+      />
     </Link>
   )
 }

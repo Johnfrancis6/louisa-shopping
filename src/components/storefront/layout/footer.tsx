@@ -90,7 +90,7 @@ export function Footer() {
       <div className="px-4 py-12 md:px-12">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 md:grid-cols-[1.6fr_1fr_1.2fr]">
           <div>
-            <Logo />
+            <Logo className="h-14 w-auto max-w-[180px]" />
             <p className="mt-3 max-w-xs text-ls-body text-ls-gray-500">
               Boutique en ligne à [VILLE — À COMPLÉTER]. Vous commandez, on vous
               livre dans votre zone, et tout se confirme sur WhatsApp.

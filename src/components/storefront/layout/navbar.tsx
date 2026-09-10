@@ -20,7 +20,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-ls-gray-200 bg-ls-white">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-3 md:gap-4 md:px-4">
-        <Logo />
+        <Logo priority />
 
         <NavbarLinks className="hidden shrink-0 items-center gap-0.5 lg:flex" />
 
