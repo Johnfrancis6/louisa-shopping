@@ -5,6 +5,7 @@ import {
   CategoryShowcaseSkeleton,
 } from '@/components/storefront/home/category-showcase'
 import {
+  CatalogRailSection,
   ProcessSection,
   SavSection,
   NewsSection,
@@ -26,6 +27,7 @@ export default function HomePage() {
         <CategoryShowcase />
       </Suspense>
 
+      <CatalogRailSection />
       <ProcessSection />
       <SavSection />
       <NewsSection />

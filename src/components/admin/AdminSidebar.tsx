@@ -10,6 +10,7 @@ import {
   Boxes,
   Star,
   MessageCircle,
+  LayoutTemplate,
   ArrowLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -20,6 +21,7 @@ const NAV = [
   { href: '/admin/categories', label: 'Catégories', Icon: FolderTree },
   { href: '/admin/stock', label: 'Stock', Icon: Boxes },
   { href: '/admin/reviews', label: 'Avis', Icon: Star },
+  { href: '/admin/home', label: 'Accueil', Icon: LayoutTemplate },
   { href: '/admin/whatsapp', label: 'WhatsApp', Icon: MessageCircle },
 ] as const
 

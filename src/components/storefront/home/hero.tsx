@@ -2,20 +2,42 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
+import { getHeroBlock } from '@/lib/data/home'
 
 /**
  * Hero home. Avec la top bar (h-14), remplit exactement un écran sur mobile
  * (min-h = 100svh − 3.5rem). Statique par contrainte (pas d'entrée animée).
  *
- * PLACEHOLDER : image (Cloudinary demo) à remplacer. La copie ci-dessous est
- * un brouillon pour visualiser la cohérence — à valider / ajuster.
- * Grand titre = violet dédié (#D96AE6) + ombre ; sous-titre blanc.
+ * Contenu piloté par la base : `home_block` slot `hero`, géré depuis
+ * /admin/home. Tant qu'aucune ligne n'existe, on rend le BROUILLON ci-dessous
+ * (image de démo Cloudinary) — la home reste publiable sans attendre les
+ * visuels. Grand titre = violet dédié (#D96AE6) + ombre ; sous-titre blanc.
  */
-export function Hero() {
+
+/** Repli tant que la table est vide. Image = démo, à remplacer. */
+const FALLBACK = {
+  title: 'La maison, la mode et le quotidien, livrés chez vous.',
+  body:
+    'Électroménager, vêtements, cuisine et plus encore. Vous commandez, on ' +
+    'vous livre dans votre zone, et tout se confirme sur WhatsApp.',
+  ctaLabel: 'Découvrir la boutique',
+  href: '/catalogue',
+  imageUrl: 'https://res.cloudinary.com/demo/image/upload/sample',
+}
+
+export async function Hero() {
+  const block = await getHeroBlock()
+
+  const title = block?.title ?? FALLBACK.title
+  const body = block?.body ?? FALLBACK.body
+  const ctaLabel = block?.ctaLabel ?? FALLBACK.ctaLabel
+  const href = block?.href ?? FALLBACK.href
+  const imageUrl = block?.imageUrl ?? FALLBACK.imageUrl
+
   return (
     <section className="relative flex min-h-[calc(100svh-3.5rem)] flex-col justify-end overflow-hidden bg-ls-gray-200 md:min-h-[560px]">
       <Image
-        src="https://res.cloudinary.com/demo/image/upload/sample"
+        src={imageUrl}
         alt=""
         fill
         priority
@@ -30,17 +52,18 @@ export function Hero() {
           aria-hidden
         />
         <h1 className="max-w-xl text-balance text-3xl font-semibold leading-tight text-ls-violet-hero [text-shadow:0_2px_16px_rgba(0,0,0,0.6)] md:text-5xl">
-          La maison, la mode et le quotidien, livrés chez vous.
+          {title}
         </h1>
-        <p className="max-w-md [font:var(--text-ls-body)] text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.5)]">
-          Électroménager, vêtements, cuisine et plus encore. Vous commandez, on
-          vous livre dans votre zone, et tout se confirme sur WhatsApp.
-        </p>
+        {body && (
+          <p className="max-w-md [font:var(--text-ls-body)] text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.5)]">
+            {body}
+          </p>
+        )}
         <Link
-          href="/catalogue"
+          href={href}
           className="mt-2 inline-flex h-12 items-center justify-center rounded-full bg-ls-violet px-8 text-ls-body font-medium text-ls-white shadow-ls-cta transition-colors duration-[var(--duration-ls-fast)] hover:bg-ls-violet-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ls-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
         >
-          Découvrir la boutique
+          {ctaLabel}
         </Link>
       </div>
 

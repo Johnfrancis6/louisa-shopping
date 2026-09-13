@@ -16,6 +16,7 @@ import {
   customer,
   whatsappConfig,
   review,
+  homeBlock,
 } from "./schema";
 import { and, asc, desc, eq } from "drizzle-orm";
 
@@ -48,8 +49,10 @@ export async function getProductAdmin(id: string) {
       id: product.id,
       slug: product.slug,
       name: product.name,
+      description: product.description,
       basePrice: product.basePrice,
       isActive: product.isActive,
+      categoryId: product.categoryId,
       categoryName: category.name,
     })
     .from(product)
@@ -135,6 +138,15 @@ export async function listReviewsAdmin(status?: "pending" | "approved" | "reject
     .leftJoin(customer, eq(review.customerId, customer.id))
     .where(status ? eq(review.status, status) : undefined)
     .orderBy(desc(review.createdAt));
+}
+
+// --- Home (contenu éditorial) -------------------------------------------
+/** Tous les blocs de la home, visibles ou non, groupés par slot puis position. */
+export async function listHomeBlocksAdmin() {
+  return dbAdmin
+    .select()
+    .from(homeBlock)
+    .orderBy(asc(homeBlock.slot), asc(homeBlock.position));
 }
 
 // --- WhatsApp config (singleton) ----------------------------------------
