@@ -9,9 +9,10 @@ import type { NextConfig } from 'next'
  * des optimisations "Vercel" (section C/D) — non applicables, hébergement = Netlify.
  */
 const nextConfig: NextConfig = {
-  // 'use cache' (fiches produit, contrat §C) — flag léger Next 15,
-  // ne pas confondre avec dynamicIO (non nécessaire ici, pas de besoin de
-  // désactiver le pré-rendu global).
+  // Cache Components (Next 16) : les pages sont statiques par défaut, tout ce
+  // qui lit cookies()/headers() ou des données vives doit vivre dans sa propre
+  // frontière <Suspense>. Les helpers de lecture utilisent 'use cache' +
+  // cacheLife() + cacheTag() (src/lib/data/*).
  cacheComponents: true,
 
   // Upload d'images produit via Server Action (gestionnaire de médias admin) —
@@ -23,15 +24,20 @@ const nextConfig: NextConfig = {
   },
 
   images: {
-    // Les médias produits sont servis par Cloudinary avec f_auto,q_auto déjà
-    // appliqué à la source (voir src/lib/cloudinary/loader.ts). On bypasse
-    // le pipeline d'optimisation d'image de Next/Netlify pour ces URLs :
-    // double-transformation inutile et évite de consommer un quota d'images
-    // Netlify séparé du quota de bande passante déjà sous surveillance.
+    // Les médias sont servis par ImageKit (et, pour les lignes héritées,
+    // Cloudinary) : les deux optimisent déjà à la livraison. On bypasse le
+    // pipeline d'optimisation de Next/Netlify pour ces URLs —
+    // double-transformation inutile, et ça évite de consommer un quota
+    // d'images Netlify séparé de la bande passante déjà sous surveillance.
     loader: 'custom',
-    loaderFile: './src/lib/cloudinary/loader.ts',
-    // Fallback pour toute image non-Cloudinary (og:image générées, assets statiques)
+    loaderFile: './src/lib/images/loader.ts',
     remotePatterns: [
+      // ImageKit — cible.
+      {
+        protocol: 'https',
+        hostname: 'ik.imagekit.io',
+      },
+      // Cloudinary — héritage (seed de démo, lignes media déjà en base).
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',

@@ -5,9 +5,14 @@
  * CRUD Media (images/vidéos produit) pour le gestionnaire de médias
  * (/admin/products/[id]).
  *
- * - Upload : passe par la Server Action → limite de corps `serverActions.
- *   bodySizeLimit` (next.config.ts, 8 Mo). OK pour des photos ; pour les vidéos,
- *   à remplacer par un upload signé direct-vers-Cloudinary.
+ * - Upload : ImageKit, via la Server Action → limite de corps
+ *   `serverActions.bodySizeLimit` (next.config.ts, 8 Mo). OK pour des photos ;
+ *   la vidéo demandera un upload signé côté navigateur.
+ * - `media.publicId` porte désormais le `fileId` ImageKit. Il est OBLIGATOIRE
+ *   pour supprimer : l'URL de livraison ImageKit ne contient pas l'id, on ne
+ *   peut pas le redériver. Les lignes héritées (res.cloudinary.com, seed de
+ *   démo) restent affichables — le loader gère les deux — mais leur asset
+ *   distant n'est plus supprimable d'ici.
  * - « Image principale » = média de plus petite `position` (convention partagée
  *   avec le storefront : data/products.ts, cart.ts trient par position ASC et
  *   prennent le premier). Il n'y a PAS de colonne is_primary.
@@ -16,10 +21,10 @@
 
 import { revalidateTag } from "next/cache";
 import { asc, eq } from "drizzle-orm";
-import { v2 as cloudinary } from "cloudinary";
 import { dbAdmin } from "@/lib/db/client";
 import { media } from "@/lib/db/schema";
 import { getAdminUserId } from "@/lib/auth-guards";
+import { deleteImage, uploadImage } from "@/lib/images/imagekit";
 
 type MediaInput = {
   productId: string;
@@ -31,23 +36,6 @@ type MediaInput = {
 
 const DENIED = { ok: false as const, error: "Accès refusé." };
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 Mo
-
-cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-/**
- * Dérive le public_id Cloudinary d'une URL "delivery" standard, pour les
- * lignes créées avant la colonne `public_id`.
- * ex. https://res.cloudinary.com/x/image/upload/v123/louisa-shopping/products/abc.jpg
- *  -> "louisa-shopping/products/abc"
- */
-function publicIdFromUrl(url: string): string | null {
-  const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
-  return m?.[1] ?? null;
-}
 
 /** Renumérote les positions d'un produit en 0..n-1 dans l'ordre courant. */
 async function repackPositions(
@@ -113,16 +101,19 @@ export async function deleteMedia(id: string) {
   if (!row) return { ok: false as const, error: "Média introuvable." };
 
   // Suppression de l'asset distant — best-effort : on ne bloque pas la
-  // suppression en base si Cloudinary échoue (la BDD fait foi pour l'affichage).
-  const publicId = row.publicId ?? publicIdFromUrl(row.url);
-  if (publicId) {
+  // suppression en base si l'API échoue (la BDD fait foi pour l'affichage).
+  if (row.publicId) {
     try {
-      await cloudinary.uploader.destroy(publicId, {
-        resource_type: row.type === "video" ? "video" : "image",
-      });
+      await deleteImage(row.publicId);
     } catch (err) {
-      console.error("[media] Cloudinary destroy échoué", publicId, err);
+      console.error("[media] Suppression ImageKit échouée", row.publicId, err);
     }
+  } else {
+    // Ligne sans fileId (héritage Cloudinary) : rien à appeler, l'id n'est pas
+    // dérivable de l'URL.
+    console.warn(
+      `[media] Asset distant non supprimé (aucun fileId en base) : ${row.url}`,
+    );
   }
 
   await dbAdmin.transaction(async (tx) => {
@@ -199,31 +190,26 @@ export async function uploadAndAddMedia(
     return { ok: false as const, error: "Fichier trop lourd (max 8 Mo)." };
   }
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  const uploaded = await new Promise<{ secure_url: string; public_id: string }>(
-    (resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(
-          {
-            resource_type: type === "video" ? "video" : "image",
-            folder: "louisa-shopping/products",
-          },
-          (err, result) => (err || !result ? reject(err) : resolve(result)),
-        )
-        .end(buffer);
-    },
-  ).catch(() => null);
-
-  if (!uploaded) {
-    return { ok: false as const, error: "Échec de l'upload Cloudinary." };
+  if (type === "video") {
+    // Pas encore branché : l'upload vidéo passera par une URL signée côté
+    // navigateur (les 8 Mo de bodySizeLimit ne suffisent pas). Mieux vaut le
+    // dire que d'échouer en vol.
+    return {
+      ok: false as const,
+      error: "L'upload vidéo n'est pas encore branché — utilisez une image.",
+    };
   }
 
-  return addMedia({
-    productId,
-    url: uploaded.secure_url,
-    publicId: uploaded.public_id,
-    type,
-  });
+  try {
+    const uploaded = await uploadImage(file);
+    return addMedia({
+      productId,
+      url: uploaded.url,
+      publicId: uploaded.id,
+      type,
+    });
+  } catch (err) {
+    console.error("[media] uploadAndAddMedia", err);
+    return { ok: false as const, error: "Échec de l'upload ImageKit." };
+  }
 }
