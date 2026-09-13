@@ -4,11 +4,11 @@
  * src/lib/actions/admin/products.ts
  * CRUD Product (hors variantes/médias/tutoriels). Suppression = soft delete
  * (isActive=false) : un DELETE cascaderait sur variant/media/tutorialContent
- * et casserait l'historique orderItem. Garde admin + revalidateTag sur toutes
+ * et casserait l'historique orderItem. Garde admin + updateTag sur toutes
  * les mutations.
  */
 
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/client";
 import { product } from "@/lib/db/schema";
@@ -30,8 +30,8 @@ const DENIED = { ok: false as const, error: "Accès refusé." };
 // 'products' couvre la liste catalogue ET les fiches (le reader détail tague
 // aussi 'products'). 'stock' rafraîchit les vues qui affichent la dispo.
 function bump() {
-  revalidateTag("products");
-  revalidateTag("stock");
+  updateTag("products");
+  updateTag("stock");
 }
 
 /**

@@ -9,7 +9,7 @@ import { homeBlock } from '@/lib/db/schema'
  * du parcours). Lecture publique via dbAnon — policy `home_block_public_read`
  * ne laisse passer que visible = true.
  *
- * Busté par `revalidateTag('home')` depuis src/lib/actions/admin/home.ts.
+ * Busté par `updateTag('home')` depuis src/lib/actions/admin/home.ts.
  * `cacheLife('hours')` : ce contenu bouge rarement, et toute écriture admin
  * invalide explicitement.
  */

@@ -4,7 +4,7 @@
  * src/lib/actions/admin/orders.ts
  * Façade Admin : valide la transition côté UI (source unique :
  * lib/order-transitions.ts) puis délègue à `transitionOrder`, qui porte la
- * garde admin, les mutations StockLedger et revalidateTag().
+ * garde admin, les mutations StockLedger et updateTag().
  */
 
 import { transitionOrder } from "@/lib/actions/orders";

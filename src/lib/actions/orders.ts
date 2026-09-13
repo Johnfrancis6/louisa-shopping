@@ -1,7 +1,7 @@
 /**
  * src/lib/actions/orders.ts
  * Agent : Logique métier
- * Rôle  : Toutes les transitions Order.status, mutations StockLedger, revalidateTag().
+ * Rôle  : Toutes les transitions Order.status, mutations StockLedger, updateTag().
  *
  * Diagramme d'états (flux simplifié 2026-09) :
  *   pending_whatsapp → confirmed       (admin — valide la commande WhatsApp)
@@ -11,7 +11,12 @@
  *
  * Règles strictes :
  *  - StockLedger décrémenté UNIQUEMENT à confirmed→delivered.
- *  - revalidateTag() appelé UNIQUEMENT ici (jamais depuis UI ni Admin directement).
+ *  - updateTag() appelé UNIQUEMENT ici (jamais depuis UI ni Admin directement).
+ *    `updateTag` et pas `revalidateTag` : la forme à un argument de ce dernier
+ *    est dépréciée en Next 16, et sa forme à deux arguments sert du contenu
+ *    périmé en arrière-plan. Ici l'admin doit voir son écriture tout de suite
+ *    (read-your-own-writes) — c'est exactement ce que fait `updateTag`, qui
+ *    n'est utilisable que depuis une Server Action. Tous les appels le sont.
  *  - dbAdmin pour tout (mutations ET lectures) : `order`/`order_item`/
  *    `stock_ledger` sont deny-by-default pour dbAnon. Le scoping propriétaire
  *    est explicite (customerId === session.user.id).
@@ -20,7 +25,7 @@
 
 'use server'
 
-import { revalidateTag }  from 'next/cache'
+import { updateTag }      from 'next/cache'
 import { dbAdmin }        from '@/lib/db/client'
 import type { OrderStatus } from '@/lib/db/schema'
 import { getAdminUserId, getUserId } from '@/lib/auth-guards'
@@ -67,13 +72,13 @@ function isActionResult(v: unknown): v is ActionResult {
 }
 
 // ─────────────────────────────────────────────
-// Helper StockLedger + revalidateTag
+// Helper StockLedger + updateTag
 // ─────────────────────────────────────────────
 
 /**
  * Écrit toutes les entrées StockLedger pour un order dans une transaction.
  * Met à jour variant.stock_qty.
- * Appelle revalidateTag() sur chaque variante concernée.
+ * Appelle updateTag() sur chaque variante concernée.
  *
  * @param tx       Transaction Drizzle
  * @param orderId  ID de l'order
@@ -132,7 +137,7 @@ async function applyStockDelta(
 }
 
 /**
- * revalidateTag pour toutes les variantes d'un order.
+ * updateTag pour toutes les variantes d'un order.
  * Appelé APRÈS la transaction (hors tx — effet de bord Next.js cache).
  * Convention de tag : `stock:${variantId}` (à aligner avec 'use cache' dans l'UI).
  */
@@ -144,10 +149,10 @@ async function revalidateOrderStock(orderId: string): Promise<void> {
 
   const variantIds = [...new Set(items.map((i) => i.variantId))]
   for (const variantId of variantIds) {
-    revalidateTag(`stock:${variantId}`)
+    updateTag(`stock:${variantId}`)
   }
   // Tag global catalogue (pour les pages listing)
-  revalidateTag('stock')
+  updateTag('stock')
 }
 
 // ─────────────────────────────────────────────
@@ -263,7 +268,7 @@ export async function confirmOrder(orderId: string): Promise<ActionResult> {
 /**
  * confirmed → delivered
  * SEUL moment où le stock bouge : décrémente StockLedger (reason='order') +
- * revalidateTag().
+ * updateTag().
  *
  * Ordre imposé : la transition D'ABORD, le stock ENSUITE. C'est l'UPDATE
  * gardé qui exclut un second appel concurrent ; l'inverser rouvrirait la
@@ -290,7 +295,7 @@ export async function deliverOrder(orderId: string): Promise<ActionResult> {
     }
   }
 
-  // revalidateTag() — hors transaction, après commit
+  // updateTag() — hors transaction, après commit
   await revalidateOrderStock(orderId)
 
   return { success: true }

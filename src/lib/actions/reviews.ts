@@ -6,7 +6,7 @@
  * (modération admin) — jamais visible publiquement avant approbation.
  * L'auteur = le client connecté (customer.name), jamais un nom libre.
  */
-import { revalidateTag } from 'next/cache'
+import { updateTag } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { dbAdmin } from '@/lib/db/client'
 import { review, customer, products } from '@/lib/db/schema'
@@ -67,7 +67,7 @@ export async function createReview(
     })
 
     // Le tag est réutilisé à l'approbation admin (revalidation de la liste).
-    revalidateTag(`reviews:${input.productId}`)
+    updateTag(`reviews:${input.productId}`)
     return { success: true }
   } catch (err) {
     console.error('[reviews] createReview', err)

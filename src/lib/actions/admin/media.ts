@@ -16,10 +16,10 @@
  * - « Image principale » = média de plus petite `position` (convention partagée
  *   avec le storefront : data/products.ts, cart.ts trient par position ASC et
  *   prennent le premier). Il n'y a PAS de colonne is_primary.
- * - Garde admin + revalidateTag('products') sur toute mutation.
+ * - Garde admin + updateTag('products') sur toute mutation.
  */
 
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import { asc, eq } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/client";
 import { media } from "@/lib/db/schema";
@@ -74,7 +74,7 @@ export async function addMedia(input: MediaInput) {
       position: nextPosition,
     })
     .returning();
-  revalidateTag("products");
+  updateTag("products");
   return { ok: true as const, media: row };
 }
 
@@ -86,7 +86,7 @@ export async function updateMediaAlt(id: string, alt: string) {
     .set({ alt: alt.trim() || null })
     .where(eq(media.id, id))
     .returning();
-  revalidateTag("products");
+  updateTag("products");
   return { ok: true as const, media: row };
 }
 
@@ -120,7 +120,7 @@ export async function deleteMedia(id: string) {
     await tx.delete(media).where(eq(media.id, id));
     await repackPositions(tx, row.productId);
   });
-  revalidateTag("products");
+  updateTag("products");
   return { ok: true as const };
 }
 
@@ -150,7 +150,7 @@ export async function reorderMedia(productId: string, orderedIds: string[]) {
       await tx.update(media).set({ position: i }).where(eq(media.id, orderedIds[i]));
     }
   });
-  revalidateTag("products");
+  updateTag("products");
   return { ok: true as const };
 }
 

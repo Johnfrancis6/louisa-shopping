@@ -11,10 +11,10 @@
  * Remplacer l'image d'un bloc supprime l'ancienne — sinon le compte se
  * remplit d'orphelines que personne ne retrouvera.
  *
- * Garde admin + revalidateTag('home') sur toute mutation.
+ * Garde admin + updateTag('home') sur toute mutation.
  */
 
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import { asc, eq } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/client";
 import { homeBlock } from "@/lib/db/schema";
@@ -35,8 +35,8 @@ const DENIED = { ok: false as const, error: "Accès refusé." };
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 Mo — aligné sur bodySizeLimit
 
 function bump(slot?: HomeSlot) {
-  revalidateTag("home");
-  if (slot) revalidateTag(`home:${slot}`);
+  updateTag("home");
+  if (slot) updateTag(`home:${slot}`);
 }
 
 /** Vide -> null : évite d'écrire des chaînes vides qui s'afficheraient. */

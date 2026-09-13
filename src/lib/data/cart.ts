@@ -7,7 +7,7 @@ import type { Cart } from '@/lib/actions/cart'
 /**
  * Lecture cachée du compteur panier, pour le badge (navbar + bottom-nav).
  * Tag `cart` — busté par toute mutation de `src/lib/actions/cart.ts`
- * (`saveCart` / `clearCart` appellent `revalidateTag('cart')`).
+ * (`saveCart` / `clearCart` appellent `updateTag('cart')`).
  *
  * Client Redis dédié (le module `actions/cart.ts` est `'use server'` : ses
  * consts ne sont pas ré-exportables). Même clé `cart:<sessionId>`.
