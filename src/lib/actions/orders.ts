@@ -31,7 +31,7 @@ import {
   stockLedger,
   variants,
 }                         from '@/lib/db/schema'
-import { eq, and, gte, sql } from 'drizzle-orm'
+import { eq, and, desc, gte, sql } from 'drizzle-orm'
 
 // ─────────────────────────────────────────────
 // Types
@@ -180,7 +180,8 @@ export async function getOrder(orderId: string) {
 }
 
 /**
- * Retourne toutes les commandes de l'utilisateur connecté.
+ * Retourne toutes les commandes de l'utilisateur connecté, plus récente
+ * d'abord (même convention que les vues admin — cf. src/lib/db/admin.ts).
  */
 export async function getMyOrders() {
   const authResult = await requireSession()
@@ -190,25 +191,7 @@ export async function getMyOrders() {
     .select()
     .from(orders)
     .where(eq(orders.customerId, authResult.userId))
-    .orderBy(orders.createdAt)
-
-  return { success: true, orders: result }
-}
-
-// ─────────────────────────────────────────────
-// Lecture commandes (admin)
-// ─────────────────────────────────────────────
-
-/** Liste toutes les commandes (admin). */
-export async function adminListOrders(status?: OrderStatus) {
-  const authResult = await requireAdmin()
-  if (isActionResult(authResult)) return { success: false, error: authResult.error, orders: [] }
-
-  const result = await dbAdmin
-    .select()
-    .from(orders)
-    .where(status ? eq(orders.status, status) : undefined)
-    .orderBy(orders.createdAt)
+    .orderBy(desc(orders.createdAt))
 
   return { success: true, orders: result }
 }
@@ -216,6 +199,52 @@ export async function adminListOrders(status?: OrderStatus) {
 // ─────────────────────────────────────────────
 // Transitions — Admin uniquement
 // ─────────────────────────────────────────────
+
+/** Sentinelle : la garde `WHERE status = from` a rejeté la transition. */
+class TransitionRejected extends Error {}
+
+/**
+ * Ce qui sait exécuter un UPDATE : `dbAdmin` ou une transaction. On ne retient
+ * que `update` — `typeof dbAdmin` exige `$client`, qu'une transaction n'a pas.
+ */
+type Executor = Pick<typeof dbAdmin, 'update'>
+
+/**
+ * Écrit `from → to` SI la commande est TOUJOURS en `from`.
+ *
+ * La garde vit dans le WHERE, jamais dans un read-then-write : l'UPDATE pose
+ * le verrou de ligne et sérialise deux appels concurrents (double-clic admin,
+ * retry réseau). Le perdant touche 0 ligne et ressort. Sans ça, `deliverOrder`
+ * décrémentait le stock deux fois pour une seule commande.
+ *
+ * @returns false si 0 ligne — commande absente OU déjà transitionnée.
+ */
+async function writeTransition(
+  db: Executor,
+  orderId: string,
+  from: OrderStatus,
+  to: OrderStatus,
+): Promise<boolean> {
+  const rows = await db
+    .update(orders)
+    .set({ status: to, updatedAt: new Date() })
+    .where(and(eq(orders.id, orderId), eq(orders.status, from)))
+    .returning({ id: orders.id })
+
+  return rows.length > 0
+}
+
+/** Message d'erreur précis APRÈS un `writeTransition` refusé (hors chemin critique). */
+async function explainRejection(orderId: string, to: OrderStatus): Promise<string> {
+  const [row] = await dbAdmin
+    .select({ status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1)
+
+  if (!row) return 'Commande introuvable'
+  return `Transition invalide : ${row.status} → ${to}`
+}
 
 /**
  * pending_whatsapp → confirmed
@@ -225,56 +254,36 @@ export async function confirmOrder(orderId: string): Promise<ActionResult> {
   const authResult = await requireAdmin()
   if (isActionResult(authResult)) return authResult
 
-  const [order] = await dbAdmin
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1)
-
-  if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'pending_whatsapp') {
-    return { success: false, error: `Transition invalide : ${order.status} → confirmed` }
+  if (!(await writeTransition(dbAdmin, orderId, 'pending_whatsapp', 'confirmed'))) {
+    return { success: false, error: await explainRejection(orderId, 'confirmed') }
   }
-
-  await dbAdmin
-    .update(orders)
-    .set({ status: 'confirmed' })
-    .where(eq(orders.id, orderId))
-
   return { success: true }
 }
 
 /**
  * confirmed → delivered
  * SEUL moment où le stock bouge : décrémente StockLedger (reason='order') +
- * revalidateTag(). Vérification solde ≥ 0 avant décrémentation.
+ * revalidateTag().
+ *
+ * Ordre imposé : la transition D'ABORD, le stock ENSUITE. C'est l'UPDATE
+ * gardé qui exclut un second appel concurrent ; l'inverser rouvrirait la
+ * fenêtre de double décrément.
  */
 export async function deliverOrder(orderId: string): Promise<ActionResult> {
   const authResult = await requireAdmin()
   if (isActionResult(authResult)) return authResult
 
-  const [order] = await dbAdmin
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1)
-
-  if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'confirmed') {
-    return { success: false, error: `Transition invalide : ${order.status} → delivered` }
-  }
-
   try {
     await dbAdmin.transaction(async (tx) => {
-      // Décrémente le stock (seul endroit du flux où c'est autorisé)
+      if (!(await writeTransition(tx, orderId, 'confirmed', 'delivered'))) {
+        throw new TransitionRejected()
+      }
       await applyStockDelta(tx, orderId, -1, 'order')
-
-      await tx
-        .update(orders)
-        .set({ status: 'delivered' })
-        .where(eq(orders.id, orderId))
     })
   } catch (err) {
+    if (err instanceof TransitionRejected) {
+      return { success: false, error: await explainRejection(orderId, 'delivered') }
+    }
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Erreur lors de la livraison',
@@ -295,22 +304,9 @@ export async function cancelPendingOrder(orderId: string): Promise<ActionResult>
   const authResult = await requireAdmin()
   if (isActionResult(authResult)) return authResult
 
-  const [order] = await dbAdmin
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1)
-
-  if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'pending_whatsapp') {
-    return { success: false, error: `Transition invalide : ${order.status} → cancelled` }
+  if (!(await writeTransition(dbAdmin, orderId, 'pending_whatsapp', 'cancelled'))) {
+    return { success: false, error: await explainRejection(orderId, 'cancelled') }
   }
-
-  await dbAdmin
-    .update(orders)
-    .set({ status: 'cancelled' })
-    .where(eq(orders.id, orderId))
-
   return { success: true }
 }
 
@@ -322,23 +318,9 @@ export async function cancelConfirmedOrder(orderId: string): Promise<ActionResul
   const authResult = await requireAdmin()
   if (isActionResult(authResult)) return authResult
 
-  const [order] = await dbAdmin
-    .select({ status: orders.status })
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1)
-
-  if (!order) return { success: false, error: 'Commande introuvable' }
-  if (order.status !== 'confirmed') {
-    return { success: false, error: `Transition invalide : ${order.status} → cancelled` }
+  if (!(await writeTransition(dbAdmin, orderId, 'confirmed', 'cancelled'))) {
+    return { success: false, error: await explainRejection(orderId, 'cancelled') }
   }
-
-  await dbAdmin
-    .update(orders)
-    .set({ status: 'cancelled' })
-    .where(eq(orders.id, orderId))
-
-  // Pas de StockLedger — aucune décrémentation n'a eu lieu à ce stade
   return { success: true }
 }
 

@@ -5,7 +5,7 @@
  *         génère le lien wa.me avec message pré-rempli incluant /commandes/[id].
  *
  * Contraintes non-négociables :
- *  - Stock NON décrémenté ici (uniquement à confirmed→processing).
+ *  - Stock NON décrémenté ici (uniquement à confirmed→delivered).
  *  - payment_method = champ vitrine uniquement, aucune intégration paiement.
  *  - Prix et libellés TOUJOURS relus en base au moment de la commande — le
  *    panier Redis (influençable côté client) ne fait jamais foi sur le prix.
