@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { connection } from 'next/server'
-import { ImageIcon } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { listProductsAdmin, listCategoriesAdmin } from '@/lib/db/admin'
 import { formatPrice } from '@/lib/utils/format'
 import {
@@ -16,7 +16,7 @@ export default function AdminProductsPage() {
     <div>
       <PageHeader
         title="Catalogue"
-        description="Créer un produit, activer/désactiver, ajouter des variantes. Le stock se gère dans l'onglet Stock."
+        description="Créer un produit, activer/désactiver, ajouter des variantes. Cliquez sur un produit pour renommer, changer le prix, la catégorie ou les images. Le stock se gère dans l'onglet Stock."
       />
       <Suspense fallback={<LoadingRows />}>
         <ProductsSection />
@@ -69,8 +69,8 @@ async function ProductsSection() {
                   href={`/admin/products/${p.id}`}
                   className="inline-flex items-center gap-1.5 text-ls-gray-500 hover:text-ls-violet-dark"
                 >
-                  <ImageIcon size={15} />
-                  Images
+                  <Pencil size={15} />
+                  Modifier
                 </Link>
               </div>
 

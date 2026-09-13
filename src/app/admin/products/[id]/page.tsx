@@ -3,9 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { ArrowLeft } from 'lucide-react'
-import { getProductAdmin, listProductMedia } from '@/lib/db/admin'
+import { getProductAdmin, listProductMedia, listCategoriesAdmin } from '@/lib/db/admin'
 import { formatPrice } from '@/lib/utils/format'
 import { MediaManager } from '@/components/admin/media-manager'
+import { ProductEditForm } from '@/components/admin/products-admin'
 import { Panel, LoadingRows } from '@/components/admin/ui'
 
 export default function AdminProductDetailPage({
@@ -36,7 +37,10 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const product = await getProductAdmin(id)
   if (!product) notFound()
 
-  const images = await listProductMedia(id)
+  const [images, categories] = await Promise.all([
+    listProductMedia(id),
+    listCategoriesAdmin(),
+  ])
 
   return (
     <div className="flex flex-col gap-5">
@@ -47,6 +51,21 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           {product.isActive ? '' : ' · inactif'}
         </p>
       </div>
+
+      <Panel>
+        <p className="mb-4 text-sm font-semibold text-ls-gray-900">Fiche produit</p>
+        <ProductEditForm
+          product={{
+            id: product.id,
+            slug: product.slug,
+            name: product.name,
+            description: product.description,
+            basePrice: product.basePrice,
+            categoryId: product.categoryId,
+          }}
+          categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        />
+      </Panel>
 
       <Panel>
         <p className="mb-4 text-sm font-semibold text-ls-gray-900">Images</p>

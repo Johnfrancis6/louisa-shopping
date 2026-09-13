@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { createProduct, toggleProductActive } from '@/lib/actions/admin/products'
+import { createProduct, updateProduct, toggleProductActive } from '@/lib/actions/admin/products'
 import { createVariant } from '@/lib/actions/admin/variants'
 import { fieldInput, btnPrimary, btnGhost } from './ui'
 
@@ -81,6 +81,138 @@ export function ProductCreateForm({ categories }: { categories: CategoryOption[]
       <button type="submit" disabled={pending || !f.categoryId} className={btnPrimary + ' sm:col-span-2'}>
         Ajouter le produit
       </button>
+    </form>
+  )
+}
+
+/**
+ * Édition d'un produit DÉJÀ créé — c'est ici qu'on corrige un nom saisi trop
+ * vite. Le slug est affiché mais verrouillé : il porte l'URL publique
+ * `/produits/<slug>` et le tag de cache `product:<slug>`, le changer casserait
+ * les liens déjà partagés (cf. updateProduct).
+ */
+export function ProductEditForm({
+  product,
+  categories,
+}: {
+  product: {
+    id: string
+    slug: string
+    name: string
+    description: string | null
+    basePrice: number
+    categoryId: string
+  }
+  categories: CategoryOption[]
+}) {
+  const router = useRouter()
+  const [pending, start] = useTransition()
+
+  const initial = {
+    name: product.name,
+    description: product.description ?? '',
+    basePrice: String(product.basePrice),
+    categoryId: product.categoryId,
+  }
+  const [f, setF] = useState(initial)
+
+  const dirty = (Object.keys(initial) as (keyof typeof initial)[]).some(
+    (k) => f[k] !== initial[k],
+  )
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const name = f.name.trim()
+    if (!name) {
+      toast.error('Le nom du produit ne peut pas être vide.')
+      return
+    }
+    start(async () => {
+      const res = await updateProduct(product.id, {
+        name,
+        description: f.description.trim() || null,
+        basePrice: Number(f.basePrice),
+        categoryId: f.categoryId,
+      })
+      if (res.ok) {
+        toast.success('Produit mis à jour')
+        router.refresh()
+      } else {
+        toast.error(res.error ?? 'Échec')
+      }
+    })
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+      <Label label="Nom du produit">
+        <input
+          required
+          value={f.name}
+          onChange={(e) => setF({ ...f, name: e.target.value })}
+          className={fieldInput}
+        />
+      </Label>
+
+      <Label label="Catégorie">
+        <select
+          value={f.categoryId}
+          onChange={(e) => setF({ ...f, categoryId: e.target.value })}
+          className={fieldInput}
+        >
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </Label>
+
+      <Label label="Prix base (FCFA)">
+        <input
+          required
+          inputMode="numeric"
+          value={f.basePrice}
+          onChange={(e) => setF({ ...f, basePrice: e.target.value })}
+          className={fieldInput}
+        />
+      </Label>
+
+      <Label label="Adresse web (non modifiable)">
+        <input
+          value={product.slug}
+          readOnly
+          disabled
+          className={fieldInput + ' cursor-not-allowed bg-ls-gray-50 text-ls-gray-500'}
+        />
+      </Label>
+
+      <div className="sm:col-span-2">
+        <Label label="Description">
+          <textarea
+            rows={4}
+            value={f.description}
+            onChange={(e) => setF({ ...f, description: e.target.value })}
+            className="w-full rounded-ls-sm border border-ls-gray-300 bg-white p-3 text-sm text-ls-gray-900 outline-none transition-colors focus-visible:border-ls-violet focus-visible:ring-2 focus-visible:ring-ls-violet/30"
+          />
+        </Label>
+      </div>
+
+      <div className="flex flex-wrap gap-2 sm:col-span-2">
+        <button type="submit" disabled={pending || !dirty} className={btnPrimary}>
+          Enregistrer les modifications
+        </button>
+        {dirty && (
+          <button type="button" onClick={() => setF(initial)} className={btnGhost}>
+            Annuler
+          </button>
+        )}
+      </div>
+
+      <p className="text-xs text-ls-gray-500 sm:col-span-2">
+        Renommer un produit ne change ni son adresse web ni les commandes déjà
+        passées : celles-ci gardent le nom sous lequel le client a commandé.
+      </p>
     </form>
   )
 }
