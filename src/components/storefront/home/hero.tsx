@@ -14,7 +14,11 @@ import { getHeroBlock } from '@/lib/data/home'
  * visuels. Grand titre = violet dédié (#D96AE6) + ombre ; sous-titre blanc.
  */
 
-/** Repli tant que la table est vide. Image = démo, à remplacer. */
+/**
+ * Repli tant qu'aucun bloc `hero` n'existe. PAS d'image : elle arrive depuis
+ * /admin/home. Sans elle, le fond encre + le dégradé suffisent à garder le
+ * titre lisible — mieux qu'un visuel de démo qui n'est pas le vôtre.
+ */
 const FALLBACK = {
   title: 'La maison, la mode et le quotidien, livrés chez vous.',
   body:
@@ -22,7 +26,6 @@ const FALLBACK = {
     'vous livre dans votre zone, et tout se confirme sur WhatsApp.',
   ctaLabel: 'Découvrir la boutique',
   href: '/catalogue',
-  imageUrl: 'https://res.cloudinary.com/demo/image/upload/sample',
 }
 
 export async function Hero() {
@@ -32,18 +35,20 @@ export async function Hero() {
   const body = block?.body ?? FALLBACK.body
   const ctaLabel = block?.ctaLabel ?? FALLBACK.ctaLabel
   const href = block?.href ?? FALLBACK.href
-  const imageUrl = block?.imageUrl ?? FALLBACK.imageUrl
+  const imageUrl = block?.imageUrl ?? null
 
   return (
-    <section className="relative flex min-h-[calc(100svh-3.5rem)] flex-col justify-end overflow-hidden bg-ls-gray-200 md:min-h-[560px]">
-      <Image
-        src={imageUrl}
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover"
-      />
+    <section className="relative flex min-h-[calc(100svh-3.5rem)] flex-col justify-end overflow-hidden bg-ls-gray-900 md:min-h-[560px]">
+      {imageUrl && (
+        <Image
+          src={imageUrl}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/5" />
 
       <div className="relative z-10 flex flex-col items-center gap-4 px-6 pb-12 text-center md:items-start md:px-12 md:pb-16 md:text-left">
