@@ -149,7 +149,9 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
   const q = query.trim()
   if (q.length < 2) return []
-  const pattern = `%${q}%`
+  // `%` et `_` sont des jokers LIKE : échappés (ESCAPE '\\' est le défaut PG)
+  // pour qu'une saisie utilisateur reste une recherche littérale.
+  const pattern = `%${q.replace(/[\\%_]/g, '\\$&')}%`
 
   try {
     // Match sur le nom du produit OU le SKU d'une de ses variantes.
@@ -313,11 +315,6 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     console.error('[data/products] getProductBySlug', err)
     return null
   }
-}
-
-/** Ré-export sous le nom attendu par le composant client d'infinite scroll. */
-export async function loadMoreProducts(filters: CatalogFilters, cursor: string) {
-  return getProducts(filters, cursor)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

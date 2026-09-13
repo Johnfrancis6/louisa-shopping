@@ -20,9 +20,15 @@ export type SearchResults = {
 
 const MAX_PRODUCTS = 6
 const MAX_CATEGORIES = 4
+/**
+ * `searchProducts` est `'use cache'` : la requête entre dans la clé de cache.
+ * On la canonicalise et on la borne ici, à la frontière, pour qu'une frappe
+ * libre ne puisse pas générer des entrées de cache sans limite de taille.
+ */
+const MAX_QUERY_LEN = 64
 
 export async function searchStorefront(query: string): Promise<SearchResults> {
-  const q = query.trim()
+  const q = query.trim().replace(/\s+/g, ' ').slice(0, MAX_QUERY_LEN).toLowerCase()
   if (q.length < 2) return { products: [], categories: [] }
 
   const [products, allCategories, counts] = await Promise.all([
@@ -31,7 +37,7 @@ export async function searchStorefront(query: string): Promise<SearchResults> {
     getCategoryProductCounts(),
   ])
 
-  const needle = q.toLowerCase()
+  const needle = q
   const categories = allCategories
     .filter((c) => c.name.toLowerCase().includes(needle))
     .slice(0, MAX_CATEGORIES)
