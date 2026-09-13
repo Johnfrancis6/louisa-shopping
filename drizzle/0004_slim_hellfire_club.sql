@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "stock_ledger_order_variant_reason_uniq" ON "stock_ledger" USING btree ("order_id","variant_id","reason") WHERE "stock_ledger"."order_id" is not null;

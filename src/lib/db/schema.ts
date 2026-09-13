@@ -91,6 +91,21 @@ export const stockReasonEnum = pgEnum("stock_reason", [
   "manual_adjustment",
 ]);
 
+/**
+ * Emplacements éditoriaux de la home. Une ligne `home_block` = un visuel géré
+ * par le marchand depuis /admin/home, sans redéploiement.
+ *  - `hero`       : la bannière plein écran (1 ligne visible attendue)
+ *  - `rail`       : les blocs du carrousel « Sélections »
+ *  - `news`       : les cartes « Actualités »
+ *  - `process`    : les 3 illustrations de « Comment ça marche »
+ */
+export const homeSlotEnum = pgEnum("home_slot", [
+  "hero",
+  "rail",
+  "news",
+  "process",
+]);
+
 export const reviewStatusEnum = pgEnum("review_status", [
   "pending",
   "approved",
@@ -579,7 +594,7 @@ export const orderItemRelations = relations(orderItem, ({ one }) => ({
 
 // ---------------------------------------------------------------------------
 // StockLedger — seule source de vérité pour les mouvements de stock
-// (contrat C : décrémenté uniquement à confirmed -> processing)
+// (contrat C : décrémenté uniquement à confirmed -> delivered)
 // ---------------------------------------------------------------------------
 
 export const stockLedger = pgTable(
@@ -601,6 +616,16 @@ export const stockLedger = pgTable(
   (t) => ({
     variantIdx: index("stock_ledger_variant_id_idx").on(t.variantId),
     orderIdx: index("stock_ledger_order_id_idx").on(t.orderId),
+    // Filet BASE DE DONNÉES contre un double mouvement de stock pour une même
+    // commande : un seul (order, variante, motif). La garde applicative vit
+    // dans `writeTransition` (actions/orders.ts) ; celle-ci tient même si un
+    // futur chemin de code l'oublie.
+    // Partiel : les ajustements manuels ont order_id NULL et restent libres.
+    // `reason` est dans la clé pour laisser un 'return'/'cancellation' suivre
+    // un 'order' sur la même ligne de commande.
+    orderMovementUniq: uniqueIndex("stock_ledger_order_variant_reason_uniq")
+      .on(t.orderId, t.variantId, t.reason)
+      .where(sql`${t.orderId} is not null`),
   })
 );
 
@@ -740,6 +765,53 @@ export const whatsappConfig = pgTable(
 // persistance long terme est requise un jour, elle devra être actée dans
 // 01-architecture/ avant implémentation (règle de conflit §8).
 
+// ---------------------------------------------------------------------------
+// HomeBlock — contenu éditorial de la home (images + textes + liens).
+//
+// Avant : hero, carrousel et actualités étaient des constantes dans le code —
+// changer un visuel imposait un commit + un déploiement. Ici c'est de la
+// donnée : le marchand gère depuis /admin/home.
+//
+// `imageUrl` est l'URL de livraison complète (ce que rend le storefront),
+// `imageId` le `fileId` ImageKit (nécessaire pour supprimer
+// l'asset distant). Même découpage que `media.url` / `media.publicId`.
+//
+// Lecture publique via dbAnon : policy `home_block_public_read` limitée à
+// visible = true (supabase/policies.sql).
+// ---------------------------------------------------------------------------
+
+export const homeBlock = pgTable(
+  "home_block",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slot: homeSlotEnum("slot").notNull(),
+    /** Sur-titre : la date pour `news`, une accroche courte pour `rail`. */
+    eyebrow: text("eyebrow"),
+    title: text("title").notNull(),
+    /** Accroche / chapô affiché sous le titre. */
+    body: text("body"),
+    /** Libellé du bouton — utilisé par `hero` seulement. */
+    ctaLabel: text("cta_label"),
+    /** Cible du lien (interne, ex. /catalogue?categorie=sacs-a-main). */
+    href: text("href"),
+    imageUrl: text("image_url"),
+    /** `fileId` ImageKit — null pour une URL héritée (Cloudinary). */
+    imageId: text("image_id"),
+    position: integer("position").notNull().default(0),
+    visible: boolean("visible").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    // Tri d'affichage : on lit toujours par (slot, position).
+    slotPositionIdx: index("home_block_slot_position_idx").on(t.slot, t.position),
+  })
+);
+
 // Alias de compatibilité avec les Server Actions existantes.
 export const categories = category;
 export const products = product;
@@ -747,4 +819,5 @@ export const variants = variant;
 export const orders = order;
 export const orderItems = orderItem;
 export const reviews = review;
+export const homeBlocks = homeBlock;
 // ---------------------------------------------------------------------------

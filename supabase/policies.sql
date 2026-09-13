@@ -29,7 +29,7 @@ grant usage on schema public to anon, authenticated, service_role;
 -- verrou : ni GRANT, ni policy).
 grant select on
   "category", "product", "variant", "media", "tutorial_content",
-  "zone", "whatsapp_config", "review"
+  "zone", "whatsapp_config", "review", "home_block"
 to anon, authenticated;
 
 -- dbAdmin (app_service) : accès complet. BYPASSRLS gère la partie RLS, ce
@@ -168,6 +168,19 @@ create policy "review_public_read_approved"
   on "review" for select
   to anon, authenticated
   using (status = 'approved');
+
+-- ---------------------------------------------------------------------------
+-- HomeBlock — contenu éditorial de la home (hero, carrousel, actualités).
+-- Lecture publique des blocs visibles uniquement ; l'écriture passe par
+-- /admin/home -> Server Action -> dbAdmin (garde admin).
+-- ---------------------------------------------------------------------------
+alter table "home_block" enable row level security;
+
+drop policy if exists "home_block_public_read" on "home_block";
+create policy "home_block_public_read"
+  on "home_block" for select
+  to anon, authenticated
+  using (visible = true);
 
 -- ---------------------------------------------------------------------------
 -- Customer — AUCUNE policy anon/authenticated => deny-by-default.
