@@ -11,8 +11,8 @@ import {
   toggleHomeBlockVisibility,
   deleteHomeBlock,
   uploadHomeBlockImage,
-  type HomeSlot,
 } from '@/lib/actions/admin/home'
+import { SLOT_META, type HomeSlot } from '@/lib/home-slots'
 import { Card, fieldInput, btnPrimary, btnOutline, btnDanger } from './ui'
 
 /**
@@ -32,31 +32,6 @@ export type HomeBlockRow = {
   imageUrl: string | null
   position: number
   visible: boolean
-}
-
-/** Ce que chaque slot attend réellement — évite les champs inutiles à l'écran. */
-export const SLOT_META: Record<
-  HomeSlot,
-  { label: string; hint: string; eyebrowLabel?: string; withCta?: boolean }
-> = {
-  hero: {
-    label: 'Bannière (hero)',
-    hint: "Un seul bloc visible attendu. Image plein écran, titre et bouton d'appel.",
-    withCta: true,
-  },
-  rail: {
-    label: 'Carrousel « Sélections »',
-    hint: 'Le titre et l’accroche s’affichent PAR-DESSUS l’image, en haut du bloc.',
-  },
-  news: {
-    label: 'Actualités',
-    hint: 'Le sur-titre sert de date.',
-    eyebrowLabel: 'Date',
-  },
-  process: {
-    label: 'Illustrations « Comment ça marche »',
-    hint: 'Trois blocs, dans l’ordre des étapes. L’accroche remplace le texte de l’étape.',
-  },
 }
 
 function useAction() {

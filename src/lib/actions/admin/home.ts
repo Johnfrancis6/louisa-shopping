@@ -20,8 +20,7 @@ import { dbAdmin } from "@/lib/db/client";
 import { homeBlock } from "@/lib/db/schema";
 import { getAdminUserId } from "@/lib/auth-guards";
 import { deleteImage, uploadImage } from "@/lib/images/imagekit";
-
-export type HomeSlot = "hero" | "rail" | "news" | "process";
+import type { HomeSlot } from "@/lib/home-slots";
 
 type HomeBlockInput = {
   eyebrow?: string | null;

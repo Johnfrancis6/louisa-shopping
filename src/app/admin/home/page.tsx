@@ -4,13 +4,12 @@ import { listHomeBlocksAdmin } from '@/lib/db/admin'
 import {
   HomeBlockCreateForm,
   HomeBlockCard,
-  SLOT_META,
   type HomeBlockRow,
 } from '@/components/admin/home-admin'
+import { SLOT_META, SLOT_ORDER, type HomeSlot } from '@/lib/home-slots'
 import { PageHeader, Panel, CardList, EmptyState, LoadingRows } from '@/components/admin/ui'
-import type { HomeSlot } from '@/lib/actions/admin/home'
 
-const SLOTS: HomeSlot[] = ['hero', 'rail', 'news', 'process']
+const SLOTS: HomeSlot[] = SLOT_ORDER
 
 export default function AdminHomePage() {
   return (
