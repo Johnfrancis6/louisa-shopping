@@ -3,10 +3,10 @@
 /**
  * src/lib/actions/admin/reviews.ts
  * Modération des avis. Un avis n'est visible publiquement qu'en status
- * 'approved' (policy RLS). Garde admin + updateTag(`reviews:${productId}`).
+ * 'approved' (policy RLS). Garde admin + revalidateTag(`reviews:${productId}`, { expire: 0 }).
  */
 
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/client";
 import { review } from "@/lib/db/schema";
@@ -24,7 +24,7 @@ async function setStatus(id: string, status: "approved" | "rejected") {
     .returning({ productId: review.productId });
 
   if (!row) return { ok: false as const, error: "Avis introuvable." };
-  updateTag(`reviews:${row.productId}`);
+  revalidateTag(`reviews:${row.productId}`, { expire: 0 });
   return { ok: true as const };
 }
 

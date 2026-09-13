@@ -4,10 +4,10 @@
  * src/lib/actions/admin/categories.ts
  * CRUD + réordonnancement Category. Validation contraste WCAG AA bloquante
  * avant tout insert/update de bg_color. Toutes les actions : garde admin +
- * updateTag('categories').
+ * revalidateTag('categories', { expire: 0 }).
  */
 
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/client";
 import { category } from "@/lib/db/schema";
@@ -25,7 +25,7 @@ type CategoryInput = {
 const DENIED = { ok: false as const, error: "Accès refusé." };
 
 function bump() {
-  updateTag("categories");
+  revalidateTag("categories", { expire: 0 });
 }
 
 export async function createCategory(input: CategoryInput) {

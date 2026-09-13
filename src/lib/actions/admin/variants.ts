@@ -7,7 +7,7 @@
  * StockLedger comme source de vérité (contrat §C).
  */
 
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/client";
 import { variant, stockLedger } from "@/lib/db/schema";
@@ -24,9 +24,9 @@ type VariantInput = {
 const DENIED = { ok: false as const, error: "Accès refusé." };
 
 function bump(variantId?: string) {
-  updateTag("products");
-  updateTag("stock");
-  if (variantId) updateTag(`stock:${variantId}`);
+  revalidateTag("products", { expire: 0 });
+  revalidateTag("stock", { expire: 0 });
+  if (variantId) revalidateTag(`stock:${variantId}`, { expire: 0 });
 }
 
 export async function createVariant(input: VariantInput & { initialStock?: number }) {

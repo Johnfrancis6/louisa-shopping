@@ -3,11 +3,11 @@
 /**
  * src/lib/actions/admin/whatsapp-config.ts
  * Édition du singleton WhatsappConfig (id=1, CHECK côté DB — jamais d'insert
- * ici, seulement update). Garde admin + updateTag('whatsapp-config').
+ * ici, seulement update). Garde admin + revalidateTag('whatsapp-config', { expire: 0 }).
  * Si la ligne n'existe pas encore, on l'upsert (id=1).
  */
 
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { dbAdmin } from "@/lib/db/client";
 import { whatsappConfig } from "@/lib/db/schema";
 import { getAdminUserId } from "@/lib/auth-guards";
@@ -34,6 +34,6 @@ export async function updateWhatsappConfig(input: { numero: string; lienWa: stri
     })
     .returning();
 
-  updateTag("whatsapp-config");
+  revalidateTag("whatsapp-config", { expire: 0 });
   return { ok: true as const, config: row };
 }

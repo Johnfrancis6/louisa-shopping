@@ -1,7 +1,7 @@
 /**
  * src/lib/actions/orders.ts
  * Agent : Logique métier
- * Rôle  : Toutes les transitions Order.status, mutations StockLedger, updateTag().
+ * Rôle  : Toutes les transitions Order.status, mutations StockLedger, revalidateTag().
  *
  * Diagramme d'états (flux simplifié 2026-09) :
  *   pending_whatsapp → confirmed       (admin — valide la commande WhatsApp)
@@ -11,12 +11,15 @@
  *
  * Règles strictes :
  *  - StockLedger décrémenté UNIQUEMENT à confirmed→delivered.
- *  - updateTag() appelé UNIQUEMENT ici (jamais depuis UI ni Admin directement).
- *    `updateTag` et pas `revalidateTag` : la forme à un argument de ce dernier
- *    est dépréciée en Next 16, et sa forme à deux arguments sert du contenu
- *    périmé en arrière-plan. Ici l'admin doit voir son écriture tout de suite
- *    (read-your-own-writes) — c'est exactement ce que fait `updateTag`, qui
- *    n'est utilisable que depuis une Server Action. Tous les appels le sont.
+ *  - revalidateTag() appelé UNIQUEMENT ici (jamais depuis UI ni Admin directement).
+ *    `revalidateTag(tag, { expire: 0 })` : la forme à UN argument est dépréciée
+ *    en Next 16 (la CI la refuse), et un profil comme 'max' servirait du
+ *    contenu périmé en arrière-plan — l'admin ne verrait pas son écriture.
+ *    `{ expire: 0 }` reproduit exactement l'ancienne sémantique : rien de
+ *    périmé n'est servi, la requête suivante recalcule.
+ *    PAS `updateTag` : il est plus récent que le runtime Next de Netlify
+ *    (v5.15.13), où il redevient un no-op silencieux — l'invalidation cesse
+ *    alors sans la moindre erreur.
  *  - dbAdmin pour tout (mutations ET lectures) : `order`/`order_item`/
  *    `stock_ledger` sont deny-by-default pour dbAnon. Le scoping propriétaire
  *    est explicite (customerId === session.user.id).
@@ -25,7 +28,7 @@
 
 'use server'
 
-import { updateTag }      from 'next/cache'
+import { revalidateTag }  from 'next/cache'
 import { dbAdmin }        from '@/lib/db/client'
 import type { OrderStatus } from '@/lib/db/schema'
 import { getAdminUserId, getUserId } from '@/lib/auth-guards'
@@ -72,13 +75,13 @@ function isActionResult(v: unknown): v is ActionResult {
 }
 
 // ─────────────────────────────────────────────
-// Helper StockLedger + updateTag
+// Helper StockLedger + revalidateTag
 // ─────────────────────────────────────────────
 
 /**
  * Écrit toutes les entrées StockLedger pour un order dans une transaction.
  * Met à jour variant.stock_qty.
- * Appelle updateTag() sur chaque variante concernée.
+ * Appelle revalidateTag() sur chaque variante concernée.
  *
  * @param tx       Transaction Drizzle
  * @param orderId  ID de l'order
@@ -137,7 +140,7 @@ async function applyStockDelta(
 }
 
 /**
- * updateTag pour toutes les variantes d'un order.
+ * revalidateTag pour toutes les variantes d'un order.
  * Appelé APRÈS la transaction (hors tx — effet de bord Next.js cache).
  * Convention de tag : `stock:${variantId}` (à aligner avec 'use cache' dans l'UI).
  */
@@ -149,10 +152,10 @@ async function revalidateOrderStock(orderId: string): Promise<void> {
 
   const variantIds = [...new Set(items.map((i) => i.variantId))]
   for (const variantId of variantIds) {
-    updateTag(`stock:${variantId}`)
+    revalidateTag(`stock:${variantId}`, { expire: 0 })
   }
   // Tag global catalogue (pour les pages listing)
-  updateTag('stock')
+  revalidateTag('stock', { expire: 0 })
 }
 
 // ─────────────────────────────────────────────

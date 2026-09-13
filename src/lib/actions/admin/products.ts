@@ -8,7 +8,7 @@
  * les mutations.
  */
 
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/client";
 import { product } from "@/lib/db/schema";
@@ -30,8 +30,8 @@ const DENIED = { ok: false as const, error: "Accès refusé." };
 // 'products' couvre la liste catalogue ET les fiches (le reader détail tague
 // aussi 'products'). 'stock' rafraîchit les vues qui affichent la dispo.
 function bump() {
-  updateTag("products");
-  updateTag("stock");
+  revalidateTag("products", { expire: 0 });
+  revalidateTag("stock", { expire: 0 });
 }
 
 /**
