@@ -2,7 +2,7 @@
  * src/lib/actions/cart.ts
  * Agent : Logique métier
  * Rôle  : Gestion du panier persisté en session Redis Upstash (TTL 7j).
- *         Aucune décrémentation de stock ici — uniquement au confirmed→processing.
+ *         Aucune décrémentation de stock ici — uniquement au confirmed→delivered.
  *         Pas de logique de paiement réel.
  */
 
@@ -270,7 +270,3 @@ export async function clearCart(): Promise<void> {
   revalidateTag('cart')
 }
 
-/** Total panier en FCFA. */
-export async function computeCartTotal(cart: Cart): Promise<number> {
-  return cart.items.reduce((sum, i) => sum + i.unitPrice * i.qty, 0)
-}

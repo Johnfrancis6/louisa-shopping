@@ -50,7 +50,7 @@ Node 22. No test framework is configured — there are no tests and no test runn
 
 Single source of truth for every table; import types from here, never redefine. Conventions: `uuid` PKs (`defaultRandom()`), snake_case SQL / camelCase TS, `createdAt`/`updatedAt` on everything. **All money is integer FCFA** (no decimals — CFA franc has no practical subunit). Lowercase table exports (`category`, `product`, …) plus plural aliases (`categories`, `products`, …) kept for back-compat with older actions.
 
-Domain model: `category` (self-referential tree) → `product` → `variant` (SKU, stock, price override). `order` freezes an `itemsSnapshot` jsonb at creation. Lifecycle (`src/lib/order-transitions.ts`): `pending_whatsapp → confirmed → delivered`, plus `cancelled` from `pending_whatsapp`/`confirmed`. `stock_ledger` is the **only** source of truth for stock movements — stock is **not** decremented at checkout, only on `confirmed → delivered`. (`processing`/`shipped` remain in the enum for historical rows.) `zone` + `product.deliveryZones` jsonb are hybrid (jsonb entry may reference a `zone.id` or stand alone). `whatsapp_config` is a singleton (`CHECK id = 1`).
+Domain model: `category` (self-referential tree) → `product` → `variant` (SKU, stock, price override). `order` freezes an `itemsSnapshot` jsonb at creation. Lifecycle (`src/lib/order-transitions.ts`): `pending_whatsapp → confirmed → delivered`, plus `cancelled` from `pending_whatsapp`/`confirmed`. `stock_ledger` is the **only** source of truth for stock movements — stock is **not** decremented at checkout, only on `confirmed → delivered`. (`processing`/`shipped` remain in the enum for historical rows.) `zone` + `product.deliveryZones` jsonb are hybrid (jsonb entry may reference a `zone.id` or stand alone). `whatsapp_config` is a singleton (`CHECK id = 1`). `home_block` (slot `hero`/`rail`/`news`/`process`) carries the home's editorial images, copy and links.
 
 ### Identity — Better Auth
 
@@ -61,21 +61,25 @@ Standard Better Auth tables (`user`/`session`/`account`/`verification`, names ha
 ### Storefront request flow
 
 - `cacheComponents: true` (Next 16) — pages are **static by default**. Anything reading `cookies()`/`headers()` or live data must be isolated in its own `<Suspense>` boundary (see `src/app/layout.tsx` → `CartBadge`). Data-fetch helpers use `'use cache'` + `cacheLife()` + `cacheTag()` (`src/lib/data/*`).
-- Cart: `src/lib/actions/cart.ts` — Server Actions over Upstash Redis, keyed by an httpOnly `cart-session` cookie (7d TTL). `addItemToCart()` (from the product page, carries full presentation data) is the real entry point; `addToCart(variantId)` is a stub.
+- Cart: `src/lib/actions/cart.ts` — Server Actions over Upstash Redis, keyed by an httpOnly `cart-session` cookie (7d TTL). `addToCart(variantId, qty)` is the only entry point (product page and product card) — the client sends just the id and quantity, the server re-reads price/labels/image/stock from the DB.
 - Checkout: `src/lib/actions/checkout.ts` `createOrder()` — auth check → read Redis cart → insert `order` + `order_item` in a `dbAdmin.transaction` → clear cart → `buildWhatsappUrl()`. No customer mutation here (the signup hook owns it). Status starts `pending_whatsapp`.
 - WhatsApp: `src/lib/whatsapp/index.ts` — **no API**, just formats a `wa.me/<number>?text=…` link from the `whatsapp_config` singleton.
 
 ### Admin
 
-Route group `src/app/(admin)/`. Reads: `src/lib/db/admin.ts` (joins/aggregates, `dbAdmin` only, read-only). Writes: `src/lib/actions/admin/*.ts` only. CSV export at `/(admin)/orders/export/route.ts`.
+`src/app/admin/` (a plain segment, not a route group). Reads: `src/lib/db/admin.ts` (joins/aggregates, `dbAdmin` only, read-only). Writes: `src/lib/actions/admin/*.ts` only. CSV export at `src/app/admin/orders/export/route.ts`.
+
+`/admin/home` edits the `home_block` table — the hero image, the « Sélections » rail, the news cards and the process illustrations. Each storefront section falls back to a hardcoded draft when its slot has no visible row, so an empty table never breaks the page.
+
+Three layers of authorization, all required: `src/proxy.ts` (edge, optimistic cookie check only) → `src/app/admin/layout.tsx` (`getAdminUserId()`, role read from the DB) → every admin Server Action re-checks. Never rely on the proxy alone.
 
 ### Layout / UI
 
 - **Storefront design language: see [`docs/design/`](docs/design/README.md).** Read it before touching any storefront page — it carries the non-negotiables (violet `#B818C9` primary, `#25D366` reserved for the WhatsApp confirm button only, the `rounded-ls-*` radius scale, no Framer Motion) and a **Tailwind v4 gotcha**: `rounded-[--radius-ls-md]` renders square corners — always `rounded-ls-md`. The home page (`/`) is the coherence reference.
 - Path alias `@/*` → `src/*`.
-- Tailwind v4 (CSS-config via `@tailwindcss/postcss`, no `tailwind.config.ts`), shadcn/ui (`components.json`, `src/components/ui/`), `@base-ui/react`, both `@phosphor-icons/react` and `lucide-react`, Embla carousel, `sonner` toasts.
-- `cn` helper: `src/lib/util.ts` re-exports from the `cn` package. (Note: `src/lib/utils/` is a *different* directory of domain helpers — `format.ts`, `color.ts`, `contrast.ts`, `catalog-filters.ts`.)
-- Images: custom Cloudinary loader (`src/lib/cloudinary/loader.ts`) — Cloudinary already applies `f_auto,q_auto`, so Next/Netlify image optimization is bypassed. `next.config.ts` forces `Cache-Control: no-store` on `/checkout/*`.
+- Tailwind v4 (CSS-config via `@tailwindcss/postcss`, no `tailwind.config.ts`), shadcn/ui (`components.json`, `src/components/ui/`), `@base-ui/react`, `lucide-react`, `sonner` toasts. **No carousel library and no `@phosphor-icons/react`** — neither is installed; the home rail (`src/components/storefront/home/catalog-rail.tsx`) is CSS scroll-snap + pointer drag.
+- `cn` helper: `src/lib/utils.ts` (`clsx` + `tailwind-merge`, the standard shadcn helper). (Note: `src/lib/utils/` — with a slash — is a *different* directory of domain helpers: `format.ts`, `color.ts`, `contrast.ts`, `catalog-filters.ts`.)
+- Images: **ImageKit** — see [`docs/imagekit.md`](docs/imagekit.md) for the account setup. Custom loader `src/lib/images/loader.ts` appends `?tr=w-…,q-…,f-auto,c-at_max` and still handles legacy `res.cloudinary.com` URLs. Server-side upload/delete in `src/lib/images/imagekit.ts` (Basic auth, private key). **The ImageKit delivery URL does not contain the `fileId`** — it must be stored at upload time (`media.publicId`, `home_block.imageId`) or the remote asset can never be deleted. Next/Netlify image optimization is bypassed. `next.config.ts` forces `Cache-Control: no-store` on `/commander` and `/commandes/*`.
 - Sentry wired via `instrumentation.ts` + `sentry.*.config.ts`, browser requests tunneled through `/monitoring`.
 
 ## Deploy / CI
@@ -95,15 +99,21 @@ live tree is `(storefront)` + `admin` + `api`; Better Auth is at
   (dedicated LOGIN roles) — Supabase's `anon`/`service_role` are NOLOGIN. Migrations,
   seed, `promote-admin` use `DATABASE_URL_MIGRATE` (`postgres`). Table GRANTs for the
   app roles live in `supabase/policies.sql`. See `.env.example`.
-- **Admin is partial**: product detail (`/admin/products/[id]`) has the media manager
-  only — no product-field editor, variant edit/delete, tutorial-content CRUD, or
-  `/admin/orders/[id]` detail yet.
-- **Cloudinary upload** goes through a Server Action (`bodySizeLimit` 8 MB) — fine for
-  photos, needs signed direct-to-Cloudinary upload for video.
+- **Admin is partial**: product detail (`/admin/products/[id]`) now has the field
+  editor (name / description / price / category, via `updateProduct`) plus the
+  media manager — still no variant edit/delete, tutorial-content CRUD, or
+  `/admin/orders/[id]` detail. **`product.slug` is deliberately not editable**:
+  it is the public URL and the `product:<slug>` cache tag.
+- **Image upload** goes through a Server Action (`bodySizeLimit` 8 MB) — fine for
+  photos. Video is explicitly refused; it needs a browser-side signed upload to
+  get past the 8 MB cap. The `cloudinary` npm package is still installed but no
+  longer imported anywhere.
 - `src/lib/db/seed.ts` seeds categories/zones/whatsapp_config only — no demo products.
 - No test runner / no tests.
 - `/compte` and `/commander` guard with in-page `redirect()` (PPR: returns a 200 shell
-  then redirects in the stream) rather than a middleware 307 like `/admin/*`.
+  then redirects in the stream) rather than the edge 307 that `src/proxy.ts` does
+  for `/admin/*`. (Next 16 renamed `middleware.ts` → `proxy.ts` — that is why
+  there is no `middleware.ts` in this repo.)
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -114,3 +124,41 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+
+---
+
+# MANDATORY: Post-Task Documentation (SR-PTD)
+
+**CRITICAL: After completing ANY task that modifies files, you MUST invoke this skill:**
+
+```
+Skill tool -> skill: "sr-ptd-skill"
+```
+
+**This is NOT optional. Skipping this skill means the task is INCOMPLETE.**
+
+When planning ANY development task, add as the FINAL item in your task list:
+```
+[ ] Create SR-PTD documentation
+```
+
+### Before Starting Any Task:
+1. Create your task plan as usual
+2. Add SR-PTD documentation as the last task item
+3. This step is MANDATORY for: features, bug fixes, refactors, maintenance, research
+
+### When Completing the SR-PTD Task:
+1. Read `~/.claude/skills/sr-ptd-skill/SKILL.md` for full instructions
+2. Choose template: Full (complex tasks) or Quick (simple tasks)
+3. Create file: `SR-PTD_YYYY-MM-DD_[task-id]_[description].md`
+4. Save to: `C:/projects/Skills/Dev_doc_for_skills`
+5. Fill all applicable sections thoroughly
+
+### Task Completion Criteria:
+A task is NOT complete until SR-PTD documentation exists.
+
+### If Conversation Continues After Task:
+Update the existing SR-PTD document instead of creating a new one.
+
+---
