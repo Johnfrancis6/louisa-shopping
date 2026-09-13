@@ -9,7 +9,8 @@ Redis (Upstash) cart, Netlify.
 - Branch: `test/ci`, ~19 commits ahead of `main` (nothing on `main`). Later work this
   cycle: icon consolidation, checkout address step, admin media manager, DB role fix.
 - `npm run verify` (lint + typecheck + build) is **green**.
-- **DB is live and migrated.** Supabase project `yhgnuilrgbudjtetlqur`. 3 migrations
+- **DB is live and migrated.** Supabase project ref is in `.env.local`, not here
+  (Netlify secrets scanning flags it in tracked files). 3 migrations
   applied, `db:seed` run (10 categories / 1 zone / 1 whatsapp_config). RLS verified
   (see `HANDOFF_backend.md`). Connection roles: `app_anon` / `app_service` for the app,
   `postgres` (`DATABASE_URL_MIGRATE`) for scripts — Supabase `anon`/`service_role` are

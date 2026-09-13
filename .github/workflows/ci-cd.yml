@@ -31,13 +31,16 @@ jobs:
       - name: Build
         run: npm run build
         env:
+          # Seules les variables réellement lues par le code. Les Supabase
+          # NEXT_PUBLIC_*/SERVICE_ROLE et les CLOUDINARY_* ont été retirées :
+          # aucune n'est lue (l'app parle à Postgres en direct, les médias
+          # passent par ImageKit), et les NEXT_PUBLIC_* inutiles finissent
+          # inlinées dans le bundle où le scanner de secrets Netlify les voit.
+          #
           # Ce build ne sert qu'à valider la CI rapidement (fail-fast avant
           # que Netlify ne consomme un build) — le déploiement réel est fait
           # par Netlify lui-même (connexion Git native, cf. netlify.toml),
           # pas par ce job.
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DATABASE_URL_ANON: ${{ secrets.DATABASE_URL_ANON }}
           DATABASE_URL_ADMIN: ${{ secrets.DATABASE_URL_ADMIN }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
@@ -45,9 +48,6 @@ jobs:
           NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
           UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
           UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
-          NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ${{ secrets.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
