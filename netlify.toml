@@ -8,6 +8,25 @@
 [build.environment]
   NODE_VERSION = "22"
 
+  # Scanner de secrets Netlify — GARDÉ ARMÉ. Ne jamais poser
+  # SECRETS_SCAN_ENABLED = "false" : c'est lui qui protège DATABASE_URL_ANON,
+  # DATABASE_URL_ADMIN, BETTER_AUTH_SECRET, IMAGEKIT_PRIVATE_KEY,
+  # SENTRY_AUTH_TOKEN et UPSTASH_REDIS_REST_TOKEN, qui sont de vrais secrets.
+  #
+  # Les clés listées ci-dessous sont publiques PAR CONSTRUCTION :
+  #
+  #  - Tout `NEXT_PUBLIC_*` est inliné par Next dans le JS envoyé au
+  #    navigateur. Le scanner les retrouvera donc TOUJOURS dans le build.
+  #    Corollaire : une valeur qui doit rester secrète ne doit jamais porter
+  #    ce préfixe.
+  #  - NEXT_PUBLIC_SENTRY_DSN : un DSN Sentry est fait pour être public — il
+  #    est d'ailleurs en dur dans sentry.*.config.ts (générés par le wizard).
+  #  - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME : apparaît dans chaque URL d'image ;
+  #    le repli `?? 'r9iswf0z'` de logo.tsx porte la même valeur.
+  #  - BETTER_AUTH_URL : l'adresse publique du site, citée comme preuve de
+  #    test dans docs/AUDIT-2026-09.md.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SENTRY_DSN,NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,NEXT_PUBLIC_BASE_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT,NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY,BETTER_AUTH_URL"
+
 # Déploiement : build-on-push natif Netlify depuis Git (doit rester ACTIVÉ côté
 # dashboard). GitHub Actions ne déploie plus — `ci-cd.yml` ne fait que
 # quality (lint/typecheck/build fail-fast) + Lighthouse sur le deploy preview.
