@@ -59,22 +59,29 @@ export function ProductPurchaseExperience({ product }: { product: ProductDetail 
       (v) => v.size === size && (selectedColor === null || v.color === selectedColor) && v.stock_qty > 0
     )
 
-  const activeImage = variant?.imageUrl ?? product.images[0] ?? null
   const inStock = (variant?.stock_qty ?? 0) > 0
   const maxQty = variant?.stock_qty ?? 0
 
+  /**
+   * Toutes les photos du produit, dans l'ordre défini en admin (media.position).
+   * `media` est rattachée au PRODUIT, pas à la variante : toutes les variantes
+   * reçoivent la même première image (data/products.ts, toVariant). La galerie
+   * ne se pilote donc pas depuis la variante, sinon le cadre n'afficherait
+   * jamais que la photo n°1 — c'était le bug.
+   */
   const galleryImages = useMemo(() => {
     const all = [
-      activeImage,
       ...product.images,
       ...product.variants.map((v) => v.imageUrl),
     ].filter((s): s is string => !!s)
     return [...new Set(all)]
-  }, [activeImage, product.images, product.variants])
+  }, [product.images, product.variants])
+
+  const [activeIndex, setActiveIndex] = useState(0)
+  const activeImage = galleryImages[activeIndex] ?? galleryImages[0] ?? null
 
   function openLightbox() {
-    const start = activeImage ? galleryImages.indexOf(activeImage) : 0
-    setLightboxIndex(start < 0 ? 0 : start)
+    setLightboxIndex(Math.min(activeIndex, Math.max(galleryImages.length - 1, 0)))
   }
 
   function handleAddToCart() {
@@ -115,6 +122,29 @@ export function ProductPurchaseExperience({ product }: { product: ProductDetail 
             </button>
           )}
         </div>
+
+        {/* Miniatures — toutes les photos du produit, cliquables. Masquées s'il
+            n'y en a qu'une : une seule vignette n'apporte rien. */}
+        {galleryImages.length > 1 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {galleryImages.map((src, i) => (
+              <button
+                key={src}
+                type="button"
+                onClick={() => setActiveIndex(i)}
+                aria-label={`Voir la photo ${i + 1} sur ${galleryImages.length}`}
+                aria-current={i === activeIndex}
+                className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-ls-sm bg-ls-gray-50 transition-[box-shadow] duration-[var(--duration-ls-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ls-violet ${
+                  i === activeIndex
+                    ? 'ring-2 ring-ls-violet ring-offset-2'
+                    : 'ring-1 ring-ls-gray-200 hover:ring-ls-gray-300'
+                }`}
+              >
+                <Image src={src} alt="" fill sizes="64px" className="object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <Lightbox
