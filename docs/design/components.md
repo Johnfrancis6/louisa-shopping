@@ -21,7 +21,7 @@ Règle : **filet OU ombre, pas les deux** au repos.
 
 | Card | Fichier | Style |
 |---|---|---|
-| **Produit (catalogue)** | `catalogue/product-card.tsx` | `rounded-ls-md bg-ls-white p-3 shadow-ls-card` ; nom + SKU **en tête**, image `object-contain` encadrée (`rounded-ls-sm`, inset), prix `text-[19px] font-semibold`, bouton rond `h-10`. Hover desktop : `md:hover:-translate-y-0.5 md:hover:shadow-ls-card-hover`. Classe `ls-reveal`. ⚠️ Deux écarts connus, non corrigés (fichier en cours de modification côté utilisateur) : le nom du produit est un `<p>` et non un `<h3>`, et le bouton rond fait 40px — sous le plancher tactile alors que c'est l'ajout au panier. |
+| **Produit (catalogue)** | `catalogue/product-card.tsx` | `rounded-ls-md bg-ls-white p-3 shadow-ls-card` ; **nom seul en tête** (`<h3>`), image `object-contain` dans un cadre `rounded-ls-sm overflow-hidden` à `inset-1`, prix `text-[19px] font-semibold`, bouton rond `h-11 md:h-10`. Hover desktop : `md:hover:-translate-y-0.5 md:hover:shadow-ls-card-hover`. Classe `ls-reveal`. |
 | **Tuile catégorie (/catalogue)** | `catalogue/category-grid.tsx` | box bordée `rounded-ls-md border border-ls-gray-200 bg-ls-white p-3`, image `object-contain`, libellé + « N articles ». Active : **`border-ls-violet bg-ls-violet-bg`** ; survol `md:hover:border-ls-violet-tint`. Fallback SVG grille si pas d'image. |
 | **Bloc catégorie (home)** | `home/category-showcase.tsx` | tout le bloc = **un `<Link>`** : accroche (eyebrow) + image `aspect-[3/2] rounded-ls-xl shadow-ls-showcase` (nom en `<h3>` chip blanc bas-droite) + faux-bouton « Voir le catalogue · N articles ». `aria-label` porte le nom. `md:group-hover:scale-[1.03]` sur l'image. |
 | **Carte SAV (home)** | `home/home-sections.tsx` | `rounded-ls-md border border-ls-gray-200 bg-ls-white p-5 min-h-40` : icône encre `size={28}` en haut, `<h3>`, description, lien « En savoir plus → » poussé en bas (`mt-auto`). ⚠️ Les trois cartes pointent sur `/#contact` : le libellé promet un approfondissement et livre un bloc de contact. À arbitrer (relibeller, ou créer les pages de destination). |
@@ -63,6 +63,20 @@ L'état `début / fin` se mesure sur le **défilement réel**
 (`scrollLeft + clientWidth >= scrollWidth`), jamais sur l'index du bloc courant :
 le dernier bloc n'atteint jamais le bord gauche de la piste, donc « suivant » ne se
 désactivait jamais.
+
+### Carte produit — pourquoi pas de SKU
+
+La carte du catalogue **n'affiche pas le SKU**. Sur mobile elle doit mettre le
+produit en avant, pas l'encombrer d'une référence sans utilité au moment de
+l'achat rapide. Le SKU reste lisible là où il sert : la modale de recherche
+(« nom · SKU ») et la fiche produit.
+
+Corollaires : l'image passe à `inset-1` (le produit occupe presque tout le
+cadre), et le cadre prend `overflow-hidden` — sans lui, une photo carrée arrivant
+à 4px du bord déborde des coins arrondis. Le nom étant devenu le seul texte
+identifiant la carte, c'est un `<h3>` (la grille porte un `<h2 sr-only>`
+« Produits »), et l'image passe en `alt=""` pour ne pas répéter ce nom au lecteur
+d'écran.
 
 ## Contrôles du catalogue
 
