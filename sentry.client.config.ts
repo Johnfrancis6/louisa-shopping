@@ -10,13 +10,12 @@ Sentry.init({
   // de coût immédiat mais pour garder de la marge en cas de pic de trafic.
   tracesSampleRate: 0.2,
 
-  // Replays désactivés par défaut : consomment le quota (50 replays/mois en
-  // free tier) très vite. À activer ponctuellement pour du debug ciblé,
-  // pas en continu.
-  replaysSessionSampleRate: 0,
-  replaysOnErrorSampleRate: 0.1,
-
-  // integrations: [
-  //   Sentry.replayIntegration(),
-  // ],
+  // Replay NON activé : l'intégration n'est pas enregistrée, donc les taux
+  // d'échantillonnage ci-dessous n'avaient aucun effet — ils laissaient juste
+  // croire qu'un replay tournait. Retirés. Son code est en plus exclu du bundle
+  // par `bundleSizeOptimizations` (next.config.ts).
+  //
+  // Pour l'activer ponctuellement : ajouter `integrations: [Sentry.replayIntegration()]`
+  // ET retirer les `excludeReplay*` de next.config.ts, sinon le replay sera
+  // enregistré mais amputé. Attention au quota (50 replays/mois en free tier).
 })

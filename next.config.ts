@@ -75,6 +75,34 @@ export default withSentryConfig(nextConfig, {
  // Only print logs for uploading source maps in CI
  silent: !process.env.CI,
 
+ /**
+  * Le SDK navigateur pesait 172 KB transférés sur les 346 KB de JS de
+  * /catalogue — la moitié de la page, pour du monitoring. Le LCP y est un
+  * simple <h1> dont 89 % du délai est du « render delay », c'est-à-dire du
+  * thread principal occupé à évaluer ce script.
+  *
+  * Le Replay n'est PAS activé (integration absente, taux de session à 0) :
+  * son code partait quand même dans le bundle. On l'exclut, ainsi que les
+  * messages de debug.
+  *
+  * ⚠️ MESURÉ SANS EFFET sous Turbopack (Next 16) : le chunk Sentry fait
+  * 552 KB bruts / 172 KB gzip avec ou sans ces options, et même en ajoutant
+  * `excludeTracing: true`. Ces drapeaux passent par un DefinePlugin webpack
+  * que Turbopack ne câble pas ici. Conservés parce que c'est la configuration
+  * correcte et qu'elle prendra effet quand le bundler suivra — mais ne pas
+  * compter dessus pour un gain de poids aujourd'hui.
+  *
+  * Le vrai levier restant, si le JS doit encore baisser : ne pas charger le
+  * SDK navigateur sur le storefront, ou le charger à la demande. C'est un
+  * arbitrage produit (on perd le suivi d'erreurs côté client), pas un réglage.
+  */
+ bundleSizeOptimizations: {
+   excludeDebugStatements: true,
+   excludeReplayShadowDom: true,
+   excludeReplayIframe: true,
+   excludeReplayWorker: true,
+ },
+
  // For all available options, see:
  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
 
