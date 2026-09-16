@@ -2,8 +2,14 @@
 
 **Date** : 2026-09-16
 **Branche** : `fix/backend-audit-livraison`
-**Blocs traités** : 1 (layout & navigation) · 2 (home)
-**Commits** : `048ddc8`, `f4c849f`, `a16d17e`
+**Blocs traités** : 1 (layout & navigation) · 2 (home) · 3 (catalogue)
+**Commits** : `048ddc8`, `f4c849f`, `a16d17e`, `42620a3`, `b2137ab`, `d40f118`
+
+> **Migration `drizzle/0006`** — le relais demandait de l'appliquer avant tout.
+> Vérification faite (2026-09-16) : elle l'**était déjà**. 7 migrations
+> enregistrées, `delivery_fee` / `delivery_zone_label` et l'index unique
+> `review_customer_product_uniq` en place, 0 doublon de `review`.
+> `npm run db:migrate` confirme, sans rien appliquer.
 
 ---
 
@@ -288,7 +294,189 @@ grep -c "border-radius:--radius" .next/static/chunks/*.css   → 0
 
 ## 7. Suite
 
-Bloc 3 — **Catalogue** (`catalogue-toolbar`, `sort-control`, `filters-sheet`,
-`active-filters`, `category-grid`, `product-grid`, `product-card`). Attention :
-`product-card.tsx` porte du WIP utilisateur non committé, à ne pas écraser.
-Lire aussi `docs/design/catalogue-refonte.md`, qui n'a pas encore servi.
+Bloc 3 — **Catalogue**, ci-dessous.
+
+---
+
+# Défaut système — les cinq utilitaires typo étaient morts
+
+**Commit** : `b2137ab`. Trouvé pendant le bloc 3, mais il ne lui appartient pas :
+il touche tout le storefront, y compris les blocs 1 et 2 déjà passés.
+
+## Le défaut
+
+`--text-ls-h1/h2/body/label/price` sont des raccourcis **`font`**
+(weight/size/line-height/family). Ils vivaient dans `@theme`, où le namespace
+`--text-*` de Tailwind v4 génère un utilitaire **`font-size`**. Résultat compilé :
+
+```css
+.text-ls-h1 { font-size: 500 1.5rem/1.3 var(--font-ls-sans) }  /* invalide */
+```
+
+`font-size` n'accepte qu'une longueur. La déclaration est invalide à la
+substitution, donc écartée, et la propriété retombe sur l'héritage. Les cinq
+utilitaires ne faisaient **rien**, sur environ 130 usages.
+
+Ce qui était réellement à l'écran :
+
+| Élément | Attendu | Rendu |
+|---|---|---|
+| Tous les `<h1>` du storefront | 24px / 500 | **15px**, la taille du corps |
+| `<h2>` en `text-ls-h2` | 18px / 500 | 15px |
+| Prix de la fiche produit | 18px / 500 | 15px |
+| 51 `text-ls-label` | 12px / 500 | 15px / 400 |
+
+Le preflight Tailwind neutralise la taille par défaut des titres, donc rien ne
+rattrapait la règle écartée. Pages concernées : `/catalogue`, `/produits/[slug]`,
+`/compte`, `/connexion`, `/inscription`, `/commander`, `/commandes/[id]` et les
+trois pages légales.
+
+**Pourquoi personne ne l'a vu** : le corps de texte, lui, était juste — par
+accident. `@layer base { body { font: var(--text-ls-body) } }` fait le travail
+avec le raccourci correct. Tout le texte courant tombait donc à la bonne taille,
+et seuls les titres étaient trop petits — un défaut qui se lit comme un choix de
+design sobre.
+
+## La correction
+
+Tokens sortis de `@theme` vers `:root`, utilitaires déclarés à la main.
+
+**En `@layer components`, pas en `@utility`** — et c'est le point qui a demandé
+une deuxième passe. `font:` est un raccourci : il réinitialise `font-weight`. Une
+première version en `@utility` plaçait `.text-ls-label` **après** `.font-semibold`
+dans la feuille compilée (positions 41616 contre 30122), à spécificité égale : le
+raccourci aurait écrasé le poids des **23 éléments** qui écrivent les deux
+ensemble (`text-ls-label font-semibold`). La couche `components` passe avant
+`utilities` — le token pose la taille et un poids par défaut, un `font-*`
+explicite garde le dernier mot. Vérifié sur les positions réelles après rebuild
+(9402 contre 30363).
+
+Même famille de piège que `rounded-[--radius-ls-md]` : un token qui est un
+raccourci ne peut pas vivre dans un namespace `@theme` mono-propriété. Consigné
+dans `typography.md` (piège nº 2) et `tokens.md`.
+
+## Ce que ça dit de l'audit
+
+Les blocs 1 et 2 sont passés à côté. Les deux ont vérifié les rayons dans le CSS
+compilé — le piège documenté — sans se demander si le *même* piège frappait
+ailleurs. Il a fallu voir un `<h1>` sans autre classe de taille sur `/catalogue`
+pour ouvrir le CSS. Règle à garder pour les blocs suivants : **vérifier qu'un
+utilitaire maison produit la règle attendue**, pas seulement qu'il est présent.
+
+---
+
+# Bloc 3 — catalogue
+
+**Périmètre** : `catalogue-toolbar`, `sort-control`, `filters-sheet`,
+`active-filters`, `category-grid`, `product-grid`, `product-card`,
+`(storefront)/catalogue/page.tsx`, `lib/utils/catalog-filters.ts`.
+**Commit** : `d40f118`
+
+## 1. Le point de départ
+
+`docs/design/catalogue-refonte.md` — non lu par les blocs précédents — portait une
+**« étape 6 — RESTE À FAIRE »** de quatre points, écrite en 2026-09-09 et jamais
+faite. Vérification au code : les quatre étaient bien encore ouverts. Le bloc 3
+consiste donc autant à finir cette refonte qu'à l'auditer.
+
+Le reste est sain : `catalog-filters.ts` normalise et **borne** toute entrée
+externe avant qu'elle n'atteigne une fonction `'use cache'` (longueur,
+cardinalité, plage, tri canonique) — la clé de cache ne peut pas être gonflée
+depuis l'URL ; le tri est un `<select>` natif ; les tranches de prix sont
+cohérentes avec leurs libellés ; `countActiveFilters` exclut à raison catégorie et
+tri.
+
+## 2. Constats
+
+**`major` — le panneau de filtres gardait un état périmé.**
+Ses `useState` ne lisent l'URL qu'au montage, et le composant ne se démonte pas
+quand l'URL change. Retirer un filtre par une chip, puis rouvrir le panneau :
+l'ancienne sélection était toujours affichée, et « Voir les résultats » la
+réappliquait — le retrait était purement et simplement annulé. Le journal de
+refonte affirmait que `bracketFor()` « re-sélectionne à l'ouverture » ; c'est
+faux, un `useState(initial)` ne se réévalue jamais. Panneau passé en contrôlé,
+re-synchronisé à chaque ouverture.
+
+**`minor` — double chargement possible au défilement.**
+La garde de `loadMoreProducts` était `isPending`, lu dans la closure de
+l'`IntersectionObserver`. Entre deux franchissements de la sentinelle, l'état peut
+ne pas encore avoir été recalculé : la même page s'ajoutait deux fois, avec des
+clés React dupliquées. Passée en `ref`.
+
+**`minor` — deux skeletons qui décalent la page.** Celui des résultats rendait des
+blocs `aspect-[3/4]` là où la card réelle est nom → image carrée → ligne prix ; et
+sa toolbar ne s'empilait pas sous `sm:` comme la vraie. Celui des catégories
+omettait le titre « Catégories », poussant toute la page à l'arrivée du contenu.
+
+**`minor` — chips de filtres à `h-9`.** Le journal de refonte le savait et le
+justifiait par la cohérence avec « les autres contrôles de filtre ». Or le tri, le
+bouton « Filtres » et les toggles du panneau sont tous à `h-11` : les chips
+étaient à la fois sous le plancher tactile et incohérentes.
+
+**Étape 6, points 2 et 3** — état vide réduit à un `<p>` centré, sans issue quand
+des filtres ne donnent rien ; et pagination infinie sans bouton ni région
+d'annonce, donc invisible et inatteignable autrement qu'en faisant défiler.
+
+## 3. Travaux livrés
+
+| Fichier | Changement |
+|---|---|
+| `product-grid.tsx` | Réécrit : état vide façon carte SAV + lien « Réinitialiser les filtres » ; bouton « Charger plus de produits » ; région `role="status"` ; verrou de chargement en `ref` ; rattrapage d'un échec de pagination. |
+| `filters-sheet.tsx` | `Sheet` contrôlé, re-synchronisation du formulaire sur l'URL à chaque ouverture. |
+| `catalogue/page.tsx` | `CatalogueResultsSkeleton` calqué sur la card et la toolbar réelles. |
+| `category-grid.tsx` | Titre « Catégories » ajouté au skeleton. |
+| `active-filters.tsx` | Chips et « Tout effacer » à `h-11`. |
+| `docs/design/*` | Journal de refonte à jour ; tuile active en violet ; anatomie du panneau latéral ; contradiction `ls-reveal` levée. |
+
+## 4. Points de vigilance relevés en vérification
+
+- **Le lien « Réinitialiser les filtres » est un `<Link>`, pas un bouton.** Le
+  journal proposait d'extraire `FILTER_PARAMS` dans `catalog-filters.ts` pour le
+  reconstruire côté client. Inutile : l'URL cible se dérive de `filters` avec
+  `catalogFiltersToSearchParams` en gardant `categorie` et `tri`. Un vrai lien,
+  qui marche au clavier et sans JS, sans duplication de la liste des paramètres.
+- **`git add src/` a happé `product-card.tsx`** (WIP utilisateur) au moment de
+  préparer le commit. Rattrapé avant de committer — le fichier est intact et
+  toujours non committé. Stager fichier par fichier tant que ce WIP existe.
+
+## 5. Dette laissée ouverte
+
+- **`product-card.tsx`, non touché** (WIP utilisateur) : le nom du produit est un
+  `<p>` et non un `<h3>` — `typography.md` interdit explicitement le `<p>` stylé
+  en guise de titre, et la grille a bien un `<h2 sr-only>` au-dessus ; le bouton
+  rond fait 40px alors que c'est l'ajout au panier, l'action principale de la
+  carte. Consigné dans `components.md`.
+- **Échec du premier chargement du catalogue** indistinguable de « aucun
+  résultat » : `getProducts` catch en `{ items: [], total: 0 }`. Il faudrait un
+  flag `error` au retour — ça touche la couche données, hors périmètre d'un bloc
+  frontend.
+- **`shadow-ls-sheet`** est encore décrit dans `tokens.md` comme le token du
+  bottom sheet des filtres. Le panneau est devenu latéral et ne l'utilise plus ;
+  plus personne ne l'utilise. À supprimer ou réaffecter.
+- **`SortControl` et le `<select>` prix du panneau dupliquent** le markup
+  `<select> + ChevronDown` — dette déjà notée par le journal de refonte, laissée
+  telle quelle (deux occurrences, pas trois).
+- **`getProducts` charge tout le catalogue puis pagine en mémoire** (déjà dans les
+  « Known rough edges » de `CLAUDE.md`). Avec le bouton « Charger plus », la
+  pagination devient une action explicite : ça ne l'aggrave pas, mais ça ne le
+  règle pas.
+
+## 6. Vérification
+
+```
+npm run lint       ✓
+npm run typecheck  ✓
+npm run build      ✓
+grep -c "border-radius:--radius" .next/static/chunks/*.css   → 0
+grep -o "\.text-ls-h1{[^}]*}" .next/static/chunks/*.css     → font:var(--text-ls-h1)
+```
+
+Sur le HTML prérendu de `/catalogue` : nouveau skeleton de card présent, ancien
+`aspect-[3/4]` absent, titre du skeleton catégories présent.
+
+## 7. Suite
+
+Bloc 4 — **Fiche produit** (`product-purchase-experience`, `delivery-zones`,
+`reviews-section`, `review-form`, `tutorial-section`). Y vérifier en priorité
+l'effet du correctif typo : `<h1>` du produit et `text-ls-price` y retrouvent
+leur taille, la mise en page de la fiche n'a jamais été vue avec.
