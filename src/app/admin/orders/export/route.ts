@@ -8,7 +8,14 @@ import { getAdminUserId } from "@/lib/auth-guards";
 import { readDeliveryAddress } from "@/lib/orders-display";
 
 function csvEscape(value: unknown): string {
-  const str = String(value ?? "");
+  let str = String(value ?? "");
+  // Neutralise l'injection de formule : un tableur (Excel, LibreOffice, Sheets)
+  // exécute toute cellule commençant par =, +, -, @, tabulation ou retour
+  // chariot — or ces champs sont saisis librement par le client (nom de
+  // livraison, indications, etc.). L'apostrophe force l'affichage en texte brut.
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
   return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 
