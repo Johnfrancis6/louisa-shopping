@@ -566,7 +566,43 @@ dû à une opacité `/70`). Détail dans le commit.
   Si ça se confirme en production, le CDN ne cache aucun HTML.
 - **`/favicon.ico` en 404** — seule erreur console de la page.
 
-## 9. Suite
+## 9. Correction du LCP
+
+**Commit** : voir `perf(front): retirer le fade-in…`.
+
+**La cause tenait en un mot.** `(storefront)/template.tsx` appliquait
+`animate-in fade-in` à toute page. `fade-in` pose `--tw-enter-opacity: 0` : le
+premier rendu de chaque page commençait invisible, et un élément à `opacity: 0`
+n'est pas un « contentful paint ». Le LCP de `/catalogue` étant un simple `<h1>`
+qui n'attend ni réseau ni serveur, il attendait purement et simplement la fin du
+fondu. La règle « visible au repos » de `motion.md` l'interdisait déjà.
+
+|  | avant | après | seuil |
+|---|---|---|---|
+| Performance | 71–81 | **85–91** | 85 |
+| LCP | 4,0–4,2 s | **2,8 s** | 2,5 s |
+| TBT | 270–640 ms | 250–450 ms | — |
+| CLS | 0 | 0 | 0,1 |
+
+**Ce n'est pas terminé** : le LCP reste à 2,8 s contre une assertion CI à 2,5 s,
+et la marge sur le score est mince (un run à 85 pile). Deux leviers restants :
+
+1. **Le chunk Sentry, 172 KB gzip — la moitié du JS de la page.** Le LCP est à
+   82 % du « render delay », c'est-à-dire du thread principal occupé à évaluer
+   ce script. `bundleSizeOptimizations` a été essayé et **mesuré sans effet**
+   sous Turbopack (chunk identique avec, sans, et même avec
+   `excludeTracing: true`) : ces drapeaux passent par un DefinePlugin webpack.
+   Le vrai geste est de ne pas charger le SDK navigateur sur le storefront, ou
+   de le charger à la demande — arbitrage produit, pas réglage.
+2. **Le `no-store` sur toutes les pages** (voir § 8). Le TTFB pèse 18 % du LCP
+   en local ; si Netlify ne peut cacher aucun HTML, il ne s'améliorera pas en
+   production. À vérifier sur une préviz avant de conclure.
+
+**Réserve de méthode** : toutes ces mesures sont locales (WSL, `next start`,
+Supabase distant). La CI mesure une préviz Netlify. Les écarts avant/après sont
+fiables, les valeurs absolues non.
+
+## 10. Suite
 
 Bloc 4 — **Fiche produit** (`product-purchase-experience`, `delivery-zones`,
 `reviews-section`, `review-form`, `tutorial-section`). Y vérifier en priorité
