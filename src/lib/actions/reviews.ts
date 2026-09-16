@@ -10,7 +10,7 @@ import { revalidateTag } from 'next/cache'
 import { and, eq } from 'drizzle-orm'
 import { dbAdmin } from '@/lib/db/client'
 import { review, customer, products } from '@/lib/db/schema'
-import { getUserId } from '@/lib/auth-guards'
+import { getUserId, ensureCustomer } from '@/lib/auth-guards'
 
 export interface CreateReviewInput {
   productId: string
@@ -24,6 +24,13 @@ export async function createReview(
   const userId = await getUserId()
   if (!userId) {
     return { success: false, error: 'Connectez-vous pour laisser un avis.' }
+  }
+
+  // Filet de rattrapage : voir src/lib/actions/checkout.ts createOrder — même
+  // risque de compte sans profil `customer` (hook post-signup hors transaction).
+  const customerCheck = await ensureCustomer()
+  if (!customerCheck.ok) {
+    return { success: false, error: customerCheck.error }
   }
 
   const rating = Math.trunc(Number(input.rating))

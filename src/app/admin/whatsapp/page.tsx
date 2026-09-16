@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { getWhatsappConfig } from '@/lib/db/admin'
+import { getWhatsappConfig } from '@/lib/data/whatsapp-config'
 import { WhatsappConfigForm } from '@/components/admin/whatsapp-config-form'
 import { PageHeader, Panel } from '@/components/admin/ui'
 

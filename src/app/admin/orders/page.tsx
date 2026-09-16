@@ -91,12 +91,6 @@ async function OrdersList() {
                 <span className="text-ls-gray-500">Règlement</span>
                 <span>{PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}</span>
               </div>
-              {o.whatsappRef && (
-                <div className="flex justify-between gap-3">
-                  <span className="text-ls-gray-500">Réf. WhatsApp</span>
-                  <span className="tabular-nums">{o.whatsappRef}</span>
-                </div>
-              )}
             </div>
 
             {address ? (
@@ -115,7 +109,11 @@ async function OrdersList() {
             ) : null}
 
             <div className="border-t border-ls-gray-100 pt-3">
-              <OrderTransitions orderId={o.id} status={o.status as OrderStatus} />
+              <OrderTransitions
+                orderId={o.id}
+                status={o.status as OrderStatus}
+                whatsappRef={o.whatsappRef}
+              />
             </div>
           </Card>
         )

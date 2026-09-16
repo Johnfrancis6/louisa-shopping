@@ -28,7 +28,7 @@ import { dbAdmin, dbAnon } from '@/lib/db/client'
 import { orders, orderItems, variants, products, customer } from '@/lib/db/schema'
 import { and, eq, inArray } from 'drizzle-orm'
 import { buildWhatsappUrl } from '@/lib/whatsapp'
-import { getSession, getUserId } from '@/lib/auth-guards'
+import { getSession, getUserId, ensureCustomer } from '@/lib/auth-guards'
 import { readSnapshot } from '@/lib/orders-display'
 import { getZones } from '@/lib/data/zones'
 import type { DeliveryZone } from '@/types/catalog'
@@ -152,6 +152,14 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
   const userId = await getUserId()
   if (!userId) {
     return { success: false, error: 'Session expirée — veuillez vous reconnecter' }
+  }
+
+  // Filet de rattrapage : le hook post-signup (src/lib/auth.ts) crée `customer`
+  // hors transaction — s'il a échoué, l'insert Order ci-dessous casserait sur
+  // la FK order.customer_id avec un message incompréhensible pour le client.
+  const customerCheck = await ensureCustomer()
+  if (!customerCheck.ok) {
+    return { success: false, error: customerCheck.error }
   }
 
   const address = cleanAddress(input?.address)

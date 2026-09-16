@@ -7,8 +7,7 @@ import 'server-only'
  *         Aucun appel API WhatsApp — lien direct uniquement (modèle vitrine).
  */
 
-import { dbAdmin } from '@/lib/db/client'
-import { whatsappConfig } from '@/lib/db/schema'
+import { getWhatsappConfig } from '@/lib/data/whatsapp-config'
 
 // ─────────────────────────────────────────────
 // Types
@@ -44,22 +43,6 @@ const PAYMENT_LABELS: Record<WaMessageParams['paymentMethod'], string> = {
   mobile_money_orange: 'Orange Money',
   mobile_money_moov:   'Moov Money',
   cod:                 'Paiement à la livraison',
-}
-
-// ─────────────────────────────────────────────
-// Lecture config (singleton id=1)
-// ─────────────────────────────────────────────
-
-export async function getWhatsappConfig() {
-  const [config] = await dbAdmin
-    .select()
-    .from(whatsappConfig)
-    .limit(1)
-
-  if (!config) {
-    throw new Error('WhatsappConfig introuvable — configurez le numéro dans /admin/config')
-  }
-  return config
 }
 
 // ─────────────────────────────────────────────
@@ -107,19 +90,46 @@ function formatMessage(params: WaMessageParams): string {
 
 /**
  * Construit le lien wa.me avec message pré-rempli.
- * Lit le numéro depuis WhatsappConfig (dbAdmin) — jamais hardcodé.
+ * Lit la config via le lecteur unique `@/lib/data/whatsapp-config`
+ * (`dbAnon`, `'use cache'`) — jamais hardcodé, jamais un doublon local.
+ *
+ * `createOrder` (src/lib/actions/checkout.ts) rattrape l'exception ci-dessous
+ * pour renvoyer un avertissement « Numéro WhatsApp non configuré » plutôt que
+ * de casser le tunnel : NE PAS remplacer ce throw par un retour silencieux.
  *
  * @returns URL complète prête à passer en window.location ou <a href>
  */
 export async function buildWhatsappUrl(params: WaMessageParams): Promise<string> {
   const config = await getWhatsappConfig()
-
-  // Numéro normalisé : on accepte "0022670000000" ou "+22670000000"
-  // wa.me attend le format international sans le +
-  const numero = config.numero.replace(/^\+/, '').replace(/\s/g, '')
+  if (!config) {
+    throw new Error('WhatsappConfig introuvable — configurez le numéro dans /admin/whatsapp')
+  }
 
   const message = formatMessage(params)
-  const encoded = encodeURIComponent(message)
 
-  return `https://wa.me/${numero}?text=${encoded}`
+  // `lienWa` est un lien wa.me pré-construit, saisi et validé côté admin
+  // (toujours `https://wa.me/…`, cf. updateWhatsappConfig) — à utiliser tel
+  // quel plutôt que de reconstruire depuis `numero`. Il peut déjà porter une
+  // query string : on passe par URL/URLSearchParams pour ne jamais produire
+  // un second `?`.
+  // `new URL` lève sur une valeur malformée : updateWhatsappConfig n'impose
+  // qu'un préfixe `https://wa.me/`, et rien n'empêche une ligne écrite
+  // directement en base d'être invalide. On retombe alors sur `numero`
+  // plutôt que de priver le commerçant de son lien de confirmation.
+  if (config.lienWa) {
+    try {
+      const url = new URL(config.lienWa)
+      url.searchParams.set('text', message)
+      return url.toString()
+    } catch {
+      console.error('[whatsapp] lienWa invalide, repli sur numero :', config.lienWa)
+    }
+  }
+
+  // Repli : `numero` normalisé — on accepte "0022670000000" ou "+22670000000",
+  // wa.me attend le format international sans le +.
+  const numero = config.numero.replace(/^\+/, '').replace(/\s/g, '')
+  const url = new URL(`https://wa.me/${numero}`)
+  url.searchParams.set('text', message)
+  return url.toString()
 }

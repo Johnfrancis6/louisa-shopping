@@ -33,6 +33,7 @@ import { dbAdmin }        from '@/lib/db/client'
 import type { OrderStatus } from '@/lib/db/schema'
 import { getAdminUserId, getUserId } from '@/lib/auth-guards'
 import { canTransition } from '@/lib/order-transitions'
+import { isUuid } from '@/lib/utils/ids'
 import {
   orders,
   orderItems,
@@ -169,6 +170,11 @@ async function revalidateOrderStock(orderId: string): Promise<void> {
 export async function getOrder(orderId: string) {
   const authResult = await requireSession()
   if (isActionResult(authResult)) return { success: false, error: authResult.error }
+
+  // Garde UUID AVANT toute requête : un id malformé (ex. /commandes/pas-un-uuid)
+  // ferait lever à Postgres 22P02 (invalid input syntax for type uuid), non
+  // catégorisé plus haut — on le traite comme « introuvable », pas comme une 500.
+  if (!isUuid(orderId)) return { success: false, error: 'Commande introuvable' }
 
   // dbAdmin + filtre propriétaire explicite : la table `order` est
   // deny-by-default pour dbAnon (aucune policy RLS) — cf. supabase/policies.sql.

@@ -16,11 +16,11 @@ import {
   stockLedger,
   order,
   customer,
-  whatsappConfig,
   review,
   homeBlock,
 } from "./schema";
 import { and, asc, desc, eq } from "drizzle-orm";
+import { isUuid } from "@/lib/utils/ids";
 
 // --- Catégories --------------------------------------------------------
 export async function listCategoriesAdmin() {
@@ -46,6 +46,10 @@ export async function listProductsAdmin() {
 
 /** Fiche produit pour /admin/products/[id] — infos de base, null si absent. */
 export async function getProductAdmin(id: string) {
+  // Garde UUID AVANT toute requête — id malformé (segment [id] brut depuis
+  // l'URL) → 22P02 Postgres sinon. Même traitement qu'un id absent : null.
+  if (!isUuid(id)) return null;
+
   const [row] = await dbAdmin
     .select({
       id: product.id,
@@ -95,6 +99,9 @@ export async function listStockOverview() {
 }
 
 export async function getStockLedgerForVariant(variantId: string) {
+  // Garde UUID AVANT toute requête — même raison que getProductAdmin ci-dessus.
+  if (!isUuid(variantId)) return [];
+
   return dbAdmin
     .select()
     .from(stockLedger)
@@ -151,13 +158,4 @@ export async function listHomeBlocksAdmin() {
     .select()
     .from(homeBlock)
     .orderBy(asc(homeBlock.slot), asc(homeBlock.position));
-}
-
-// --- WhatsApp config (singleton) ----------------------------------------
-export async function getWhatsappConfig() {
-  const rows = await dbAdmin
-    .select()
-    .from(whatsappConfig)
-    .where(eq(whatsappConfig.id, 1));
-  return rows[0] ?? null;
 }
