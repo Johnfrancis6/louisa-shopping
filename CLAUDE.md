@@ -102,14 +102,47 @@ live tree is `(storefront)` + `admin` + `api`; Better Auth is at
 - **Admin is partial**: product detail (`/admin/products/[id]`) now has the field
   editor (name / description / price / category, via `updateProduct`) plus the
   media manager — still no variant edit/delete, tutorial-content CRUD, or
-  `/admin/orders/[id]` detail. **`product.slug` is deliberately not editable**:
+  `/admin/orders/[id]` detail. `order.whatsapp_ref` **is** now editable from the
+  order card (`setOrderWhatsappRef`), while the order is neither delivered nor
+  cancelled — beyond that it is frozen history. **`product.slug` is deliberately not editable**:
   it is the public URL and the `product:<slug>` cache tag.
 - **Image upload** goes through a Server Action (`bodySizeLimit` 8 MB) — fine for
   photos. Video is explicitly refused; it needs a browser-side signed upload to
   get past the 8 MB cap. The `cloudinary` npm package is still installed but no
   longer imported anywhere.
+- **Delivery fees are charged** (since the 2026-09 backend audit). An order carries a
+  single fee, resolved **server-side** from the `zoneId` the client picks: the
+  **highest** fee announced by the cart's products for that zone (never undercharge a
+  multi-product order), else `zone.fraisBase`. It is frozen on the order
+  (`order.delivery_fee` / `order.delivery_zone_label`), like `items_snapshot`.
+  **An unknown or missing zone never blocks the order** — the sale closes on WhatsApp,
+  so refusing a destination is the merchant's call, not the system's; the order goes
+  through with a 0 fee. `src/lib/data/zones.ts` is the (previously unused) `zone`
+  table's only reader.
+- **Stock is checked at checkout, never reserved.** It still moves only on
+  `confirmed → delivered`. `createOrder` refuses a line exceeding current stock,
+  because an over-stock order becomes permanently undeliverable (`applyStockDelta`
+  throws and the order is stuck in `confirmed`). This closes a race, it does not
+  eliminate it. Cart lines are also deduplicated per variant: two `order_item` rows on
+  one variant would violate `stock_ledger_order_variant_reason_uniq` at delivery.
+  `createOrder` is idempotent via a Redis `order-lock:<clientRequestId>`; a Redis
+  outage degrades to no lock rather than blocking a sale.
+- **Server Actions validate at runtime, not by type.** `.set({ ...input })` is banned:
+  every admin update builds its SET on an explicit allowlist, because a Server Action
+  receives raw JSON and `Partial`/`Omit` vanish at compile time. `variant.stockQty`
+  is never writable outside `adjustVariantStock` (StockLedger stays the single source
+  of truth), and `product.slug` is never writable at all.
 - `src/lib/db/seed.ts` seeds categories/zones/whatsapp_config only — no demo products.
 - No test runner / no tests.
+- **Remaining debt** (known, deliberately unaddressed): `wishlist` and
+  `product.hasPdf` are orphans (table/column present, no action, no UI);
+  `tutorial_content` is read-only (no admin CRUD); `revalidateTag('stock:<variantId>')`
+  is called but no `cacheTag` of that name exists — the global `stock` tag does the
+  work; there is **no runtime input validation** (no zod) and **no rate limiting** on
+  sign-in/sign-up, `createReview` or `createOrder`; `getProducts` loads the whole
+  catalogue then filters/paginates in memory; `supabase/policies.sql` grants `on all
+  tables` without `alter default privileges`, so a table added by a future migration
+  stays unreachable to `dbAnon` until `npm run db:policies` is re-run.
 - `/compte` and `/commander` guard with in-page `redirect()` (PPR: returns a 200 shell
   then redirects in the stream) rather than the edge 307 that `src/proxy.ts` does
   for `/admin/*`. (Next 16 renamed `middleware.ts` → `proxy.ts` — that is why
