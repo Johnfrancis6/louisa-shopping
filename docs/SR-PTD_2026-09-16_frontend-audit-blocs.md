@@ -3,7 +3,8 @@
 **Date** : 2026-09-16
 **Branche** : `fix/backend-audit-livraison`
 **Blocs traités** : 1 (layout & navigation) · 2 (home) · 3 (catalogue)
-**Commits** : `048ddc8`, `f4c849f`, `a16d17e`, `42620a3`, `b2137ab`, `d40f118`
+**Commits** : `048ddc8`, `f4c849f`, `a16d17e`, `42620a3`, `b2137ab`, `d40f118`,
+`b2301be`
 
 > **Migration `drizzle/0006`** — le relais demandait de l'appliquer avant tout.
 > Vérification faite (2026-09-16) : elle l'**était déjà**. 7 migrations
@@ -441,11 +442,8 @@ d'annonce, donc invisible et inatteignable autrement qu'en faisant défiler.
 
 ## 5. Dette laissée ouverte
 
-- **`product-card.tsx`, non touché** (WIP utilisateur) : le nom du produit est un
-  `<p>` et non un `<h3>` — `typography.md` interdit explicitement le `<p>` stylé
-  en guise de titre, et la grille a bien un `<h2 sr-only>` au-dessus ; le bouton
-  rond fait 40px alors que c'est l'ajout au panier, l'action principale de la
-  carte. Consigné dans `components.md`.
+- ~~**`product-card.tsx`, non touché** (WIP utilisateur).~~ **Résolu**
+  (`b2301be`) — voir la section ci-dessous.
 - **Échec du premier chargement du catalogue** indistinguable de « aucun
   résultat » : `getProducts` catch en `{ items: [], total: 0 }`. Il faudrait un
   flag `error` au retour — ça touche la couche données, hors périmètre d'un bloc
@@ -474,7 +472,36 @@ grep -o "\.text-ls-h1{[^}]*}" .next/static/chunks/*.css     → font:var(--text-
 Sur le HTML prérendu de `/catalogue` : nouveau skeleton de card présent, ancien
 `aspect-[3/4]` absent, titre du skeleton catégories présent.
 
-## 7. Suite
+## 7. Carte produit — le WIP utilisateur, intégré
+
+**Commit** : `b2301be`.
+
+Le relais interdisait de committer `product-card.tsx` sans l'accord de son
+auteur. L'intention a été donnée en cours de bloc 3 : **retirer le SKU pour que
+la carte mette le produit en avant sur mobile plutôt que de l'encombrer d'une
+référence sans utilité à l'achat rapide** (d'où aussi `inset-4 → inset-1` et
+`mt-3 → mt-2`). Décision cohérente avec le système — mobile-first, sobre — et le
+SKU reste là où il sert : modale de recherche (« nom · SKU ») et fiche produit.
+
+Trois corollaires que le changement rendait nécessaires, traités avec lui :
+
+- **`overflow-hidden` manquant sur le cadre de l'image.** Il est `rounded-ls-sm`
+  mais ne découpait pas son contenu. À `inset-4` l'image n'atteignait jamais les
+  coins, donc le défaut dormait ; à `inset-1`, une photo carrée arrive à 4px du
+  bord et déborde de l'arrondi. Effet de bord invisible tant qu'on ne change pas
+  l'inset — le genre de chose qu'un audit doit attraper au moment du changement.
+- **Le nom passe de `<p>` à `<h3>`.** L'écart préexistait, mais le retrait du SKU
+  le rend structurant : le nom devient le seul texte identifiant la carte. Aucun
+  effet visuel.
+- **Bouton rond à 44px sur mobile** (`h-11 md:h-10`) et `aria-label` nommant le
+  produit — une grille annonçait vingt boutons « Ajouter au panier »
+  indistinguables. L'image passe en `alt=""`, elle répétait le nom.
+
+Le parti pris est écrit en en-tête de fichier **et** dans `components.md`, qui
+décrivait encore « nom + SKU en tête ». Sans ça, le SKU se fait ré-ajouter un
+jour au nom de la conformité à la doc.
+
+## 8. Suite
 
 Bloc 4 — **Fiche produit** (`product-purchase-experience`, `delivery-zones`,
 `reviews-section`, `review-form`, `tutorial-section`). Y vérifier en priorité
