@@ -9,8 +9,31 @@
 
 ## Échelle applicative (`--text-ls-*`)
 
-Shorthand CSS complet (weight/size/line-height/family). S'appliquent en
-`[font:var(--text-ls-h1)]` ou via l'utilitaire `text-ls-h1`.
+Shorthand CSS complet (weight/size/line-height/family). S'appliquent via
+l'utilitaire `text-ls-h1` — ou en `[font:var(--text-ls-h1)]` si besoin.
+
+> ### ⚠️ Piège Tailwind v4 nº 2 — ne pas remettre ces tokens dans `@theme`
+>
+> Ces tokens sont des raccourcis **`font`**, pas des tailles. Tant qu'ils vivaient
+> dans `@theme`, le namespace `--text-*` en générait des utilitaires
+> `font-size: 500 1.5rem/1.3 …` — **invalide**, donc écarté par le navigateur :
+> les cinq utilitaires ne faisaient rien. Tous les `<h1>` du storefront
+> s'affichaient à 15px (la taille du corps), `text-ls-label` ne réduisait ni ne
+> graissait rien, `text-ls-price` n'agrandissait pas le prix. Environ 130 usages
+> silencieusement inertes — le corps de texte, lui, était juste par accident,
+> parce que `body { font: var(--text-ls-body) }` fait le travail dans
+> `@layer base`. Trouvé à l'audit frontend (bloc 3), corrigé dans
+> `design-system.css`.
+>
+> Les tokens sont donc déclarés dans `:root` et les utilitaires à la main, dans
+> **`@layer components`** — pas en `@utility`. `font:` réinitialise
+> `font-weight` ; en couche `utilities` la règle tombait après `.font-semibold`
+> et écrasait le poids des 23 éléments qui écrivent les deux ensemble
+> (`text-ls-label font-semibold`). En `components`, le token pose la taille et un
+> poids par défaut, un `font-*` explicite garde le dernier mot.
+>
+> Contrôle : `grep -o "\.text-ls-h1{[^}]*}" .next/static/chunks/*.css` doit
+> rendre `font:var(--text-ls-h1)`, **jamais** `font-size:`.
 
 | Token | Valeur | Usage |
 |---|---|---|

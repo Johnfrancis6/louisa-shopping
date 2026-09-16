@@ -24,6 +24,11 @@ Le mapping vers les variables shadcn/base-ui (`--primary`, `--radius`, …) est 
 
 Contrôle : `grep -rc "border-radius:--radius" .next/static/**/*.css` → **0**.
 
+**Même famille de piège côté typo** : un token qui est un raccourci (`font`,
+`background`, `border`…) ne peut pas vivre dans un namespace `@theme` qui en
+génère un utilitaire mono-propriété. Voir
+[typography.md § piège nº 2](typography.md#️-piège-tailwind-v4-nº-2--ne-pas-remettre-ces-tokens-dans-theme).
+
 ---
 
 ## Couleurs
