@@ -100,7 +100,15 @@ function CategoryTile({
         {label}
       </span>
       {count > 0 && (
-        <span className="-mt-1 text-ls-label text-ls-gray-500">
+        // `ls-gray-500` tombe à 4,28:1 sur `ls-violet-bg` (tuile active) —
+        // sous le seuil AA de 4,5. Mesuré par Lighthouse sur /catalogue.
+        // `ls-violet-dark` donne 6,45:1 et va dans le sens de l'état actif.
+        <span
+          className={cn(
+            '-mt-1 text-ls-label',
+            active ? 'text-ls-violet-dark' : 'text-ls-gray-500',
+          )}
+        >
           {count} article{count > 1 ? 's' : ''}
         </span>
       )}

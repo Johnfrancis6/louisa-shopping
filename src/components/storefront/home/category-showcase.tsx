@@ -90,8 +90,12 @@ export async function CategoryShowcase() {
 
               <span className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-ls-violet-tint bg-ls-violet-bg text-ls-body font-medium text-ls-violet-dark transition-colors duration-[var(--duration-ls-fast)] group-hover:bg-ls-violet-tint">
                 Voir le catalogue
+                {/* Pas d'opacité sur le compteur : `text-ls-violet-dark/70` sur
+                    `ls-violet-bg` donne 3,67:1, sous le seuil AA de 4,5. À pleine
+                    opacité, 6,45:1 — et `font-normal` suffit à le mettre en
+                    retrait du libellé. */}
                 {countLabel && (
-                  <span className="text-ls-label font-normal text-ls-violet-dark/70">
+                  <span className="text-ls-label font-normal text-ls-violet-dark">
                     · {countLabel}
                   </span>
                 )}
