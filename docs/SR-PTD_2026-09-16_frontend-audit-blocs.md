@@ -1,10 +1,17 @@
-# SR-PTD — Audit frontend, bloc 1 : layout & navigation
+# SR-PTD — Audit frontend par blocs
 
 **Date** : 2026-09-16
+**Branche** : `fix/backend-audit-livraison`
+**Blocs traités** : 1 (layout & navigation) · 2 (home)
+**Commits** : `048ddc8`, `f4c849f`, `a16d17e`
+
+---
+
+# Bloc 1 — layout & navigation
+
 **Périmètre** : chrome storefront — `navbar`, `nav-links`, `nav-drawer`,
 `mobile-bottom-nav`, `footer`, `logo`, `cart-badge`, `admin-nav-link`,
 `src/app/layout.tsx`, `(storefront)/layout.tsx`, `(storefront)/template.tsx`
-**Branche** : `fix/backend-audit-livraison`
 **Commit** : `048ddc8`
 
 > **Note sur le gabarit.** `CLAUDE.md` impose ce document via le skill
@@ -161,6 +168,127 @@ compte/commandes) ne pourront pas être audités tant qu'elle n'est pas passée.
 
 ## 8. Suite
 
-Bloc 2 — **Home** (`hero`, `catalog-rail`, `category-showcase`, `home-sections`,
-`(storefront)/page.tsx`), la référence de cohérence dont les blocs suivants
-réutilisent le vocabulaire.
+Bloc 2 — **Home**, ci-dessous.
+
+---
+
+# Bloc 2 — home
+
+**Périmètre** : `hero`, `catalog-rail`, `category-showcase`, `home-sections`,
+`(storefront)/page.tsx` — la référence de cohérence du storefront.
+**Commit** : `a16d17e`
+
+## 1. Ce qui était conforme
+
+Contrôlé point par point contre `docs/design/`, et conforme : le rythme des fonds
+(blanc → gris → violet → blanc → gris, jamais deux teintes fortes de suite), le
+`SectionHeader` réutilisé dans les quatre sections de contenu, l'échelle typo
+bespoke de la home (hero `text-3xl md:text-5xl` + `text-ls-violet-hero`, `h2` en
+`text-[26px]`, eyebrows), un seul `<h1>`, aucun rayon hors échelle, aucune fuite
+de palette, `ls-glow` et `ls-dots` posés là où la doc les attend, `ls-reveal`
+absent du premier écran, `motion-safe:` sur le chevron du hero.
+
+Deux vérifications qui n'ont **rien** donné, mentionnées pour qu'on ne les
+refasse pas : `bg-gradient-to-t` (syntaxe Tailwind v3) compile correctement en v4
+— l'alias est conservé, le CSS produit est bien un `linear-gradient` ; et le repli
+du hero ne charge aucune image de démo, contrairement à ce que dit son en-tête de
+fichier.
+
+## 2. Constats — le carrousel concentre les défauts
+
+**`major` — le défilement auto reprenait la main sur mobile.**
+Le rail avance toutes les 4,2 s. Il se figeait au survol (`onMouseEnter`) et au
+focus — deux événements qui n'existent pas sur un téléphone. Sur la plateforme
+cible, la piste se déplaçait donc pendant qu'on lisait une carte ou qu'on la
+visait du doigt. Corrigé par un arrêt **définitif** à la première interaction,
+quelle qu'elle soit.
+
+**`major` — la flèche « suivant » ne se désactivait jamais.**
+`atEnd` valait `index >= items.length - 1`, où `index` est le bloc le plus proche
+du bord gauche. Le dernier bloc n'atteint jamais ce bord (il se cale à droite en
+fin de piste) : la condition n'était donc jamais vraie. En bout de course, la
+flèche restait active et sans effet. Le plus notable : l'autoplay, trois lignes
+plus haut dans le même fichier, mesurait déjà correctement la fin de piste sur
+`scrollLeft + clientWidth >= scrollWidth`. Deux critères concurrents dans un même
+composant, un juste et un faux.
+
+**`major` — les puces faisaient 6px de haut.**
+`h-1.5`, soit une cible de 6×6px pour les puces inactives — et c'est le **seul**
+contrôle du carrousel sur mobile, les flèches étant en `md:`. La pastille visible
+reste à 6px, le `<button>` qui la porte passe à `h-11 w-6`.
+
+**`minor` — trois liens « Lire → » qui ne menaient nulle part.**
+Les cartes d'actualité pointaient sur `/#actualites`, c'est-à-dire sur la section
+qui les contient. Un lien d'apparence active, qui ne fait rien. Rendu seulement
+si `home_block.href` existe.
+
+**`minor` — dates inventées.** « 5 septembre 2026 », « 28 août 2026 »,
+« 20 août 2026 » dans le repli des actualités, avec un commentaire qui l'assumait
+(« exemples réalistes à confirmer »). `content-and-copy.md` classe une date
+précise parmi les faits durs qu'on n'invente pas.
+
+**`nit`** — `h3` d'actualité en `font-medium` là où l'échelle dit `font-semibold` ;
+`transition-shadow` mort dans le showcase (aucune ombre ne change) ; commentaire
+de type « URL Cloudinary » dans le rail alors que les médias sont sur ImageKit.
+
+## 3. Travaux livrés
+
+| Fichier | Changement |
+|---|---|
+| `catalog-rail.tsx` | Arrêt définitif de l'autoplay à la première interaction ; bords mesurés sur le défilement réel (+ mesure initiale et `ResizeObserver`) ; puces à 44px de haut ; commentaire de type corrigé. |
+| `home-sections.tsx` | Lien « Lire » conditionné à une vraie destination ; dates → `[Date — À COMPLÉTER]` ; `h3` en `font-semibold` ; flèches décoratives `aria-hidden`. |
+| `category-showcase.tsx` | `transition-shadow` mort retiré. |
+| `docs/design/{motion,components,sections-and-backgrounds}.md` | Ligne « Sélections » au rythme des fonds ; entrée autoplay + règle d'arrêt ; anatomie du rail. |
+
+## 4. Points de vigilance relevés en vérification
+
+- **`bg-gradient-to-t` a failli être signalé à tort.** C'est de la syntaxe
+  Tailwind v3 ; v4 la conserve en alias. Vérifié dans le CSS compilé avant
+  d'écrire quoi que ce soit — aucune correction nécessaire.
+- **L'arrêt de l'autoplay se déclenche avant le filtre `pointerType`.** Le
+  gestionnaire `onPointerDown` sortait tôt pour le tactile (à raison : le geste
+  natif ne doit pas être intercepté). L'appel à `stopAutoplay()` est donc placé
+  **avant** ce retour, sinon le cas mobile — celui qui motive la correction —
+  n'aurait rien changé.
+- **Vérifié sur le HTML prérendu**, pas sur l'intention : 6 puces en `h-11 w-6`,
+  zéro occurrence de « Lire », 3 placeholders de date, `h3` en `font-semibold`, et
+  `/#actualites` ne subsiste que dans les liens de navigation.
+
+## 5. Dette laissée ouverte
+
+- **Pas de bouton pause visible sur le rail.** L'arrêt à la première interaction
+  règle le problème réel, pas la lettre de WCAG 2.2.2, qui demande un mécanisme
+  explicite. Deux issues : ajouter un bouton, ou supprimer le défilement auto —
+  qui n'est documenté nulle part comme une décision de design. Consigné dans
+  `motion.md`.
+- **Les trois cartes SAV pointent toutes sur `/#contact`** alors qu'elles
+  annoncent « En savoir plus ». Le libellé promet un approfondissement et livre un
+  bloc de contact. Non corrigé : le bon geste est soit de relibeller, soit de
+  créer les pages de destination — un arbitrage éditorial, pas technique.
+  Consigné dans `components.md`.
+- **Le showcase rend une grande image par catégorie, sans limite.** Avec les 10
+  catégories du seed, la home empile 10 images `aspect-[3/2]` pleine colonne.
+  Elles sont en `loading="lazy"`, mais la home est la page que la CI mesure
+  (Lighthouse mobile ≥ 85, LCP < 2,5 s). À surveiller au bloc transverse
+  performance.
+- **`category.image_url` est en snake_case** dans la couche `data`, seul endroit
+  où la convention camelCase du projet n'est pas tenue. Cosmétique.
+- **`ls-reveal` n'est posé que sur le showcase**, pas sur les cartes process /
+  SAV / actualités. La doc ne l'impose que sur « les éléments répétés qui entrent
+  par le bas » ; l'écart est défendable mais n'est pas un choix explicite.
+
+## 6. Vérification
+
+```
+npm run lint       ✓
+npm run typecheck  ✓
+npm run build      ✓   (prérendu partiel conservé)
+grep -c "border-radius:--radius" .next/static/chunks/*.css   → 0
+```
+
+## 7. Suite
+
+Bloc 3 — **Catalogue** (`catalogue-toolbar`, `sort-control`, `filters-sheet`,
+`active-filters`, `category-grid`, `product-grid`, `product-card`). Attention :
+`product-card.tsx` porte du WIP utilisateur non committé, à ne pas écraser.
+Lire aussi `docs/design/catalogue-refonte.md`, qui n'a pas encore servi.
