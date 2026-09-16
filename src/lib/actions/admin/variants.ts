@@ -44,27 +44,35 @@ export async function createVariant(input: VariantInput & { initialStock?: numbe
   }
 
   try {
-    const [row] = await dbAdmin
-      .insert(variant)
-      .values({
-        productId: input.productId,
-        size: input.size,
-        color: input.color,
-        sku: input.sku,
-        priceOverride: input.priceOverride,
-        stockQty: initialStock,
-      })
-      .returning();
+    // Un seul insert de variante ET un seul insert de ledger, dans la même
+    // transaction : si l'écriture du ledger échoue après celle de la
+    // variante, on se retrouve avec du stock non tracé — exactement ce que
+    // StockLedger comme source de vérité unique doit interdire.
+    const row = await dbAdmin.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(variant)
+        .values({
+          productId: input.productId,
+          size: input.size,
+          color: input.color,
+          sku: input.sku,
+          priceOverride: input.priceOverride,
+          stockQty: initialStock,
+        })
+        .returning();
 
-    // Trace la mise en stock initiale dans le ledger pour cohérence totale
-    // de l'historique, même à la création.
-    if (initialStock > 0) {
-      await dbAdmin.insert(stockLedger).values({
-        variantId: row.id,
-        delta: initialStock,
-        reason: "manual_adjustment",
-      });
-    }
+      // Trace la mise en stock initiale dans le ledger pour cohérence totale
+      // de l'historique, même à la création.
+      if (initialStock > 0) {
+        await tx.insert(stockLedger).values({
+          variantId: inserted.id,
+          delta: initialStock,
+          reason: "manual_adjustment",
+        });
+      }
+
+      return inserted;
+    });
 
     bump(row.id);
     return { ok: true as const, variant: row };
@@ -87,9 +95,20 @@ export async function updateVariant(
     return { ok: false as const, error: "Le prix override doit être un entier FCFA > 0." };
   }
 
+  // Construction explicite du SET : `input` est du JSON reçu sur une route
+  // HTTP — `Partial<Omit<VariantInput, "productId">>` ne filtre rien à
+  // l'exécution. `stockQty` et `productId` restent hors liste blanche :
+  // seule `adjustVariantStock` (ci-dessous) a le droit d'écrire du stock,
+  // pour que StockLedger reste la source de vérité unique des mouvements.
   const [row] = await dbAdmin
     .update(variant)
-    .set({ ...input, updatedAt: new Date() })
+    .set({
+      ...(input.size !== undefined ? { size: input.size } : {}),
+      ...(input.color !== undefined ? { color: input.color } : {}),
+      ...(input.sku !== undefined ? { sku: input.sku } : {}),
+      ...(input.priceOverride !== undefined ? { priceOverride: input.priceOverride } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(variant.id, id))
     .returning();
   bump(id);

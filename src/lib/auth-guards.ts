@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * src/lib/auth-guards.ts
  * Helpers d'autorisation serveur partagés (Server Actions, Route Handlers,

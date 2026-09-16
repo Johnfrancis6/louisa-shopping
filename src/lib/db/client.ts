@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * src/lib/db/client.ts
  * Deux exports nommés — décision figée contrat v2.3 section E :

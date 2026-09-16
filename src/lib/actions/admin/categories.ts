@@ -40,7 +40,21 @@ export async function createCategory(input: CategoryInput) {
   }
 
   try {
-    const [row] = await dbAdmin.insert(category).values(input).returning();
+    // Construction explicite : `input` est du JSON brut reçu par la Server
+    // Action, pas un objet garanti par `CategoryInput` — un `.values(input)`
+    // écrirait aussi `position`/`visible`/`createdAt` si le payload les
+    // contient, alors que `reorderCategories`/`toggleCategoryVisibility` sont
+    // les seules voies prévues pour ces champs.
+    const [row] = await dbAdmin
+      .insert(category)
+      .values({
+        slug: input.slug,
+        name: input.name,
+        bgColor: input.bgColor,
+        imageUrl: input.imageUrl ?? null,
+        parentId: input.parentId ?? null,
+      })
+      .returning();
     bump();
     return { ok: true as const, category: row };
   } catch {
@@ -61,9 +75,20 @@ export async function updateCategory(id: string, input: Partial<CategoryInput>) 
     }
   }
 
+  // Construction explicite du SET, champ par champ — `input` est du JSON
+  // reçu sur une route HTTP : les types ne sont pas des gardes d'exécution.
+  // `position`/`visible`/`createdAt` restent hors liste blanche : ce sont
+  // `reorderCategories`/`toggleCategoryVisibility` qui les possèdent.
   const [row] = await dbAdmin
     .update(category)
-    .set({ ...input, updatedAt: new Date() })
+    .set({
+      ...(input.slug !== undefined ? { slug: input.slug } : {}),
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.bgColor !== undefined ? { bgColor: input.bgColor } : {}),
+      ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+      ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(category.id, id))
     .returning();
   bump();

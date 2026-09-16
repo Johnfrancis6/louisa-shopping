@@ -7,7 +7,7 @@
  * L'auteur = le client connecté (customer.name), jamais un nom libre.
  */
 import { revalidateTag } from 'next/cache'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { dbAdmin } from '@/lib/db/client'
 import { review, customer, products } from '@/lib/db/schema'
 import { getUserId } from '@/lib/auth-guards'
@@ -51,10 +51,23 @@ export async function createReview(
     const [prod] = await dbAdmin
       .select({ id: products.id })
       .from(products)
-      .where(eq(products.id, input.productId))
+      .where(and(eq(products.id, input.productId), eq(products.isActive, true)))
       .limit(1)
     if (!prod) {
       return { success: false, error: 'Produit introuvable.' }
+    }
+
+    // Vérification applicative de doublon : rend un message propre plutôt
+    // que de laisser remonter la violation de l'index unique
+    // `review_customer_product_uniq` (filet base de données conservé
+    // ci-dessous, car la course entre les deux checks reste possible).
+    const [existing] = await dbAdmin
+      .select({ id: review.id })
+      .from(review)
+      .where(and(eq(review.customerId, userId), eq(review.productId, input.productId)))
+      .limit(1)
+    if (existing) {
+      return { success: false, error: 'Vous avez déjà laissé un avis sur ce produit.' }
     }
 
     await dbAdmin.insert(review).values({

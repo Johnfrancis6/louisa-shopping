@@ -1,3 +1,5 @@
+import 'server-only'
+
 /**
  * src/lib/whatsapp/index.ts
  * Agent : Logique métier

@@ -1,3 +1,4 @@
+import 'server-only'
 import { cacheLife, cacheTag } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { dbAnon } from '@/lib/db/client'

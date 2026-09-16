@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * src/lib/db/admin.ts
  * Requêtes de LECTURE pour les vues Admin — jointures/agrégats uniquement.

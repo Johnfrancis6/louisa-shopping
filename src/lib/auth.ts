@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * src/lib/auth.ts
  * Configuration serveur Better Auth — SERVEUR UNIQUEMENT.

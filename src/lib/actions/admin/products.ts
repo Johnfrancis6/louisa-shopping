@@ -65,9 +65,22 @@ export async function createProduct(input: ProductInput) {
   if (priceErr) return { ok: false as const, error: priceErr };
 
   try {
+    // Construction explicite : une Server Action reçoit du JSON brut, pas un
+    // objet typé — `ProductInput` ne filtre rien à l'exécution. On énumère
+    // ici les seules colonnes pilotables par le client à la création ;
+    // `isActive`/`createdAt`/`updatedAt` restent sous le contrôle du serveur.
     const [row] = await dbAdmin
       .insert(product)
-      .values({ ...input, deliveryZones: input.deliveryZones ?? [] })
+      .values({
+        slug: input.slug,
+        categoryId: input.categoryId,
+        name: input.name.trim(),
+        description: input.description ?? null,
+        basePrice: input.basePrice,
+        hasTutorial: input.hasTutorial ?? false,
+        hasPdf: input.hasPdf ?? false,
+        deliveryZones: input.deliveryZones ?? [],
+      })
       .returning();
     bump();
     return { ok: true as const, product: row };
@@ -100,11 +113,20 @@ export async function updateProduct(
   const priceErr = validatePrice(input.basePrice);
   if (priceErr) return { ok: false as const, error: priceErr };
 
+  // Construction explicite du SET : `input` est du JSON reçu sur une route
+  // HTTP, pas un objet garanti par le compilateur — un `...input` écrirait
+  // n'importe quelle clé présente dans le payload, y compris `slug` (URL
+  // publique + clé de cache `product:<slug>`, volontairement immuable ici).
   const [row] = await dbAdmin
     .update(product)
     .set({
-      ...input,
+      ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.basePrice !== undefined ? { basePrice: input.basePrice } : {}),
+      ...(input.hasTutorial !== undefined ? { hasTutorial: input.hasTutorial } : {}),
+      ...(input.hasPdf !== undefined ? { hasPdf: input.hasPdf } : {}),
+      ...(input.deliveryZones !== undefined ? { deliveryZones: input.deliveryZones } : {}),
       updatedAt: new Date(),
     })
     .where(eq(product.id, id))
