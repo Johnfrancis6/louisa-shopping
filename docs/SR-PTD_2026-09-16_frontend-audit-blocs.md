@@ -4,7 +4,7 @@
 **Branche** : `fix/backend-audit-livraison`
 **Blocs traités** : 1 (layout & navigation) · 2 (home) · 3 (catalogue)
 **Commits** : `048ddc8`, `f4c849f`, `a16d17e`, `42620a3`, `b2137ab`, `d40f118`,
-`b2301be`
+`b2301be`, `71d7e32`, `2429e4d`
 
 > **Migration `drizzle/0006`** — le relais demandait de l'appliquer avant tout.
 > Vérification faite (2026-09-16) : elle l'**était déjà**. 7 migrations
@@ -501,7 +501,72 @@ Le parti pris est écrit en en-tête de fichier **et** dans `components.md`, qui
 décrivait encore « nom + SKU en tête ». Sans ça, le SKU se fait ré-ajouter un
 jour au nom de la conformité à la doc.
 
-## 8. Suite
+## 8. Mesure Lighthouse de `/catalogue`
+
+**Commit** : `2429e4d`. Premier audit **mesuré** du chantier (les blocs 1–3
+étaient de la lecture de code). Chrome 134 du cache Puppeteer, build de
+production servi par `next start`, émulation mobile de `lighthouserc.json`.
+
+### Résultats
+
+| Catégorie | Score | Seuil CI | |
+|---|---|---|---|
+| Performance | **71–81** (3 runs) | 85 | ❌ |
+| Accessibilité | 96 | 90 | ✓ |
+| Best practices | 96 | 90 | ✓ |
+| SEO | 100 | 90 | ✓ |
+
+LCP 4,0–4,2 s (budget 2,5 s) · TBT 270–640 ms · **CLS 0** · FCP ~1,0 s.
+
+### Deux pièges de méthode, à ne pas refaire
+
+1. **Le premier run mesurait le serveur de développement.** `npm run start` a
+   échoué en `EADDRINUSE` (un `next dev` occupait déjà le 3000) et Lighthouse a
+   mesuré le dev server : score 35, `next-devtools` dans le bundle, « Minify
+   JavaScript −338 KiB ». Chiffres sans aucune valeur. **Toujours vérifier en
+   quoi le serveur a démarré avant de lire un rapport.**
+2. **Un serveur déjà lancé ne reprend pas un nouveau build.** Un run
+   post-correctif rapportait encore l'ancien défaut. Tuer par le PID du port
+   (`ss -lptn 'sport = :3100'`) — `pkill -f "next start …"` tue le shell appelant,
+   dont la ligne de commande contient le motif.
+
+### Ce qui est corrigé
+
+Deux contrastes AA, trouvés par la mesure puis confirmés au calcul : tuile de
+catégorie active (4,28:1) et compteur du bloc catégorie de la home (3,67:1,
+dû à une opacité `/70`). Détail dans le commit.
+
+### Ce qui reste ouvert
+
+- **Performance sous le seuil.** Le LCP est le `<h1>` « Catalogue », à **89 % de
+  « render delay »** : ni le réseau ni le serveur (document en 10 ms, polices à
+  80 ms), mais le thread principal. 1,48 s d'évaluation de script observée,
+  amplifiée ×4 par l'émulation. Le levier est le JS : **346 KB sur 18 fichiers**,
+  dont **un chunk de 172 KB qui contient Sentry** (146 occurrences), avec 76 KB
+  inutilisés. Soit la moitié du JS de la page pour du monitoring. Arbitrage à
+  prendre : `@sentry/nextjs` en chargement différé, build client allégé, ou
+  statu quo assumé.
+  **Réserve** : mesure locale (WSL, Supabase distant), pas la préviz Netlify que
+  mesure la CI. Le score absolu y sera différent ; la structure du bundle, non.
+- **`.ls-reveal` fait échouer l'audit de contraste.** L'unique échec a11y restant
+  est `#9196a1` sur blanc (2,93:1) — soit `ls-gray-500` rendu à ~74 % d'opacité,
+  c'est-à-dire un élément saisi **au milieu de son animation d'apparition**. Pour
+  un humain qui scrolle, le texte finit opaque (4,83:1, conforme). axe mesure ce
+  qui est peint et ne peut pas le savoir. Sans gravité (96 > 90) mais ça consomme
+  du budget et peut masquer un vrai échec. À garder en tête au bloc transverse
+  a11y.
+- **`ls-gray-500` est juste à la limite** : 4,83:1 sur blanc. Toute opacité, tout
+  fond teinté le fait passer sous AA. Candidat à un passage en `ls-gray-600`
+  pour le texte méta.
+- **Toutes les pages storefront sont servies en `no-store`**
+  (`private, no-cache, no-store, max-age=0, must-revalidate`), y compris `/` et
+  `/catalogue` qui sont prérendues (`x-nextjs-prerender: 1`). Lighthouse le
+  signale : bfcache désactivé. Observé sur `next start` local — **à confirmer sur
+  une préviz Netlify**, l'adaptateur OpenNext réécrivant les en-têtes de cache.
+  Si ça se confirme en production, le CDN ne cache aucun HTML.
+- **`/favicon.ico` en 404** — seule erreur console de la page.
+
+## 9. Suite
 
 Bloc 4 — **Fiche produit** (`product-purchase-experience`, `delivery-zones`,
 `reviews-section`, `review-form`, `tutorial-section`). Y vérifier en priorité
