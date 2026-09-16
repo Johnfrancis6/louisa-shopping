@@ -10,6 +10,15 @@
  *  - Prix et libellés TOUJOURS relus en base au moment de la commande — le
  *    panier Redis (influençable côté client) ne fait jamais foi sur le prix.
  *  - Écritures via dbAdmin (RLS bypass requis sur Order/OrderItem).
+ *  - Frais de livraison : une commande porte un seul frais, déterminé par la
+ *    zone choisie par le client. Il vaut le plus élevé des frais annoncés par
+ *    les produits du panier pour cette zone — on ne sous-facture jamais une
+ *    commande multi-produits. Si aucun produit du panier ne couvre la zone,
+ *    on retombe sur `zone.fraisBase`.
+ *    La zone est une INDICATION, jamais une condition de validité : la vente
+ *    se conclut sur WhatsApp, et c'est au commerçant d'accepter ou de refuser
+ *    une destination qu'il ne dessert pas. Une zone inconnue ou absente laisse
+ *    donc passer la commande avec un frais à 0, à convenir de vive voix.
  */
 
 'use server'
@@ -20,6 +29,8 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { buildWhatsappUrl } from '@/lib/whatsapp'
 import { getSession, getUserId } from '@/lib/auth-guards'
 import { readSnapshot } from '@/lib/orders-display'
+import { getZones } from '@/lib/data/zones'
+import type { DeliveryZone } from '@/types/catalog'
 import { getCart, clearCart } from './cart'
 
 // ─────────────────────────────────────────────
@@ -44,6 +55,8 @@ export interface CheckoutInput {
   address:       DeliveryAddress
   /** Intention de paiement — affichage vitrine uniquement */
   paymentMethod: 'mobile_money_orange' | 'mobile_money_moov' | 'cod'
+  /** Zone de livraison choisie — le frais est résolu côté serveur, jamais transmis par le client */
+  zoneId:        string
 }
 
 const PHONE_REGEX = /^\+?[0-9\s-]{8,20}$/
@@ -146,6 +159,7 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
       priceOverride: variants.priceOverride,
       basePrice:     products.basePrice,
       hasTutorial:   products.hasTutorial,
+      deliveryZones: products.deliveryZones,
     })
     .from(variants)
     .innerJoin(products, eq(variants.productId, products.id))
@@ -177,7 +191,32 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
     }
   }
   const items = lines as NonNullable<(typeof lines)[number]>[]
-  const total = items.reduce((sum, l) => sum + l.unitPrice * l.qty, 0)
+  const sousTotal = items.reduce((sum, l) => sum + l.unitPrice * l.qty, 0)
+
+  // ── 3bis. Frais de livraison — résolu côté serveur, jamais transmis par le client ─
+  // Zone inconnue ou absente : on NE refuse PAS la commande (cf. règle en tête
+  // de fichier). Frais à 0, libellé null — le vendeur tranchera sur WhatsApp.
+  const zones = await getZones()
+  const zoneChoisie = zones.find((z) => z.id === input.zoneId) ?? null
+
+  // Le jsonb `deliveryZones` est saisi librement en admin, jamais validé : on
+  // ne retient une entrée que si elle est structurellement valide (frais entier).
+  const fraisAnnonces = zoneChoisie
+    ? cart.items
+        .map((cartItem) => byId.get(cartItem.variantId)?.deliveryZones)
+        .flatMap((dz) => (Array.isArray(dz) ? (dz as DeliveryZone[]) : []))
+        .filter(
+          (entry) =>
+            entry?.zone_id === zoneChoisie.id &&
+            typeof entry.frais === 'number' &&
+            Number.isInteger(entry.frais),
+        )
+        .map((entry) => entry.frais)
+    : []
+
+  const fraisLivraison =
+    fraisAnnonces.length > 0 ? Math.max(...fraisAnnonces) : zoneChoisie?.fraisBase ?? 0
+  const total = sousTotal + fraisLivraison
 
   // ── 4. Transaction Order + OrderItems ─────────
   const orderId = crypto.randomUUID()
@@ -200,6 +239,8 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
           has_tutorial:        l.hasTutorial,
         })),
         deliveryAddress: address,
+        deliveryFee: fraisLivraison,
+        deliveryZoneLabel: zoneChoisie?.nom ?? null,
         whatsappRef: null,
       })
 
@@ -236,6 +277,7 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
       deliveryAddress: address,
       paymentMethod: input.paymentMethod,
       total,
+      deliveryFee: fraisLivraison,
       items: items.map((l) => ({
         productName: l.productName,
         sku:         l.sku,
@@ -273,6 +315,7 @@ export async function getOrderWhatsappUrl(orderId: string): Promise<string | nul
         paymentMethod: orders.paymentMethod,
         itemsSnapshot: orders.itemsSnapshot,
         deliveryAddress: orders.deliveryAddress,
+        deliveryFee: orders.deliveryFee,
         customerName: customer.name,
       })
       .from(orders)
@@ -291,6 +334,7 @@ export async function getOrderWhatsappUrl(orderId: string): Promise<string | nul
       deliveryAddress: address ?? undefined,
       paymentMethod: row.paymentMethod as CheckoutInput['paymentMethod'],
       total: row.total,
+      deliveryFee: row.deliveryFee,
       items: readSnapshot(row.itemsSnapshot).map((it) => ({
         productName: it.product_name,
         sku: it.sku,

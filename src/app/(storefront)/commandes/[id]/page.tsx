@@ -90,7 +90,11 @@ async function OrderContent({ params }: { params: Promise<{ id: string }> }) {
             </li>
           ))}
         </ul>
-        <div className="mt-3 flex justify-between border-t border-ls-gray-200 pt-3 font-semibold text-ls-gray-900">
+        <div className="mt-3 flex justify-between border-t border-ls-gray-200 pt-3 text-ls-body text-ls-gray-500">
+          <span>Livraison{order.deliveryZoneLabel ? ` (${order.deliveryZoneLabel})` : ''}</span>
+          <span>{formatPrice(order.deliveryFee)}</span>
+        </div>
+        <div className="mt-1 flex justify-between font-semibold text-ls-gray-900">
           <span>Total</span>
           <span>{formatPrice(order.total)}</span>
         </div>

@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { createOrder, type DeliveryAddress } from '@/lib/actions/checkout'
 import type { CartItem } from '@/lib/actions/cart'
+import type { Zone } from '@/lib/data/zones'
 import { formatPrice } from '@/lib/utils/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,10 +31,13 @@ export function CheckoutFlow({
   items,
   total,
   defaultAddress,
+  zones,
 }: {
   items: CartItem[]
   total: number
   defaultAddress: Partial<DeliveryAddress>
+  /** [] si `getZones` a échoué — on refuse alors la saisie plutôt que d'afficher un sélecteur vide. */
+  zones: Zone[]
 }) {
   const router = useRouter()
   const [step, setStep] = useState<Step>('adresse')
@@ -41,6 +46,7 @@ export function CheckoutFlow({
   const [phone, setPhone] = useState(defaultAddress.phone ?? '')
   const [city, setCity] = useState(defaultAddress.city ?? '')
   const [directions, setDirections] = useState(defaultAddress.directions ?? '')
+  const [zoneId, setZoneId] = useState(zones[0]?.id ?? '')
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod')
   const [loading, setLoading] = useState(false)
@@ -51,8 +57,17 @@ export function CheckoutFlow({
     city: city.trim(),
     ...(directions.trim() ? { directions: directions.trim() } : {}),
   }
+  // La zone ne conditionne PAS la validité : une destination non listée ne doit
+  // pas bloquer la commande, le vendeur tranche sur WhatsApp.
   const addressValid =
     !!address.fullName && !!address.city && PHONE_REGEX.test(address.phone)
+
+  const zoneChoisie = useMemo(() => zones.find((z) => z.id === zoneId), [zones, zoneId])
+  // Estimation affichée uniquement — createOrder recalcule ce frais côté serveur
+  // (le plus élevé des frais annoncés par les produits du panier pour cette
+  // zone, sinon zone.fraisBase) : le total facturé peut donc dépasser celui-ci.
+  const fraisLivraisonEstime = zoneChoisie?.fraisBase ?? 0
+  const totalEstime = total + fraisLivraisonEstime
 
   function goToRecap(e: React.FormEvent) {
     e.preventDefault()
@@ -65,7 +80,10 @@ export function CheckoutFlow({
 
   async function handleConfirm() {
     setLoading(true)
-    const res = await createOrder({ address, paymentMethod })
+    // zoneId seul est transmis — le frais n'est jamais envoyé par le client,
+    // createOrder le relit et le recalcule en base (même principe que le prix
+    // des articles).
+    const res = await createOrder({ address, paymentMethod, zoneId })
     if (!res.success) {
       setLoading(false)
       toast.error(res.error ?? 'Impossible de finaliser la commande.')
@@ -131,6 +149,34 @@ export function CheckoutFlow({
             />
           </label>
 
+          <label className="flex flex-col gap-1">
+            <span className="text-ls-label text-ls-gray-900">Zone de livraison</span>
+            {zones.length === 0 ? (
+              <p className="rounded-ls-sm border border-ls-gray-200 bg-ls-gray-50 px-3 py-2.5 text-ls-body text-ls-gray-500">
+                Frais de livraison à convenir avec le vendeur sur WhatsApp.
+              </p>
+            ) : (
+              <div className="relative">
+                <select
+                  value={zoneId}
+                  onChange={(e) => setZoneId(e.target.value)}
+                  aria-label="Zone de livraison"
+                  className="h-11 w-full appearance-none truncate rounded-ls-sm border border-ls-gray-200 bg-ls-white pl-3 pr-9 text-ls-body font-medium text-ls-gray-900 transition-[border-color] duration-[var(--duration-ls-fast)] ease-[var(--ease-ls-out)] focus-visible:border-ls-violet focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ls-violet/50 md:hover:border-ls-gray-500"
+                >
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.nom}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ls-gray-500"
+                  aria-hidden
+                />
+              </div>
+            )}
+          </label>
+
           <Button
             type="submit"
             className="h-11 bg-ls-violet text-ls-white hover:bg-ls-violet-dark"
@@ -160,12 +206,24 @@ export function CheckoutFlow({
                 )
               })}
             </ul>
-            <div className="mt-3 flex justify-between border-t border-ls-gray-200 pt-3 text-ls-body font-semibold text-ls-gray-900">
-              <span>Total</span>
-              <span>{formatPrice(total)}</span>
+            <div className="mt-3 flex flex-col gap-1 border-t border-ls-gray-200 pt-3 text-ls-body">
+              <div className="flex justify-between text-ls-gray-500">
+                <span>Sous-total</span>
+                <span>{formatPrice(total)}</span>
+              </div>
+              <div className="flex justify-between text-ls-gray-500">
+                <span>Frais de livraison{zoneChoisie ? ` (${zoneChoisie.nom})` : ''}</span>
+                <span>{formatPrice(fraisLivraisonEstime)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-ls-gray-900">
+                <span>Total</span>
+                <span>{formatPrice(totalEstime)}</span>
+              </div>
             </div>
             <p className="mt-2 text-ls-label text-ls-gray-500">
-              Frais de livraison confirmés par le vendeur sur WhatsApp.
+              Frais de livraison estimé — le montant définitif est confirmé par
+              le vendeur sur WhatsApp (un produit du panier peut relever le
+              frais pour cette zone).
             </p>
           </section>
 
@@ -186,6 +244,9 @@ export function CheckoutFlow({
               <p className="text-ls-gray-500">{address.city}</p>
               {address.directions && (
                 <p className="text-ls-gray-500">{address.directions}</p>
+              )}
+              {zoneChoisie && (
+                <p className="text-ls-gray-500">Zone : {zoneChoisie.nom}</p>
               )}
             </div>
           </section>
@@ -219,7 +280,7 @@ export function CheckoutFlow({
             <Button
               type="button"
               onClick={handleConfirm}
-              disabled={loading}
+              disabled={loading || !zoneId}
               className="h-11 bg-ls-violet text-ls-white hover:bg-ls-violet-dark"
             >
               {loading ? 'Création…' : 'Valider ma commande'}

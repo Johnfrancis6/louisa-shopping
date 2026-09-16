@@ -19,7 +19,7 @@ export async function GET() {
 
   const orders = await listOrdersAdmin();
 
-  const header = ["id", "statut", "client", "telephone", "livraison_nom", "livraison_telephone", "quartier_ville", "indications", "total_fcfa", "paiement", "ref_whatsapp", "cree_le"];
+  const header = ["id", "statut", "client", "telephone", "livraison_nom", "livraison_telephone", "quartier_ville", "indications", "total_fcfa", "frais_livraison", "zone_livraison", "paiement", "ref_whatsapp", "cree_le"];
   const rows = orders.map((o) => {
     const a = readDeliveryAddress(o.deliveryAddress);
     return [
@@ -32,6 +32,8 @@ export async function GET() {
       a?.city ?? "",
       a?.directions ?? "",
       o.total,
+      o.deliveryFee,
+      o.deliveryZoneLabel ?? "",
       o.paymentMethod,
       o.whatsappRef ?? "",
       o.createdAt?.toISOString(),

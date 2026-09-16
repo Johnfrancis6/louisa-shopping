@@ -33,7 +33,8 @@ export interface WaMessageParams {
     qty: number
     unitPrice: number     // FCFA, entier
   }>
-  total: number           // FCFA, entier
+  total: number           // FCFA, entier — sous-total + deliveryFee
+  deliveryFee: number     // FCFA, entier — frais de la zone choisie
   paymentMethod: 'mobile_money_orange' | 'mobile_money_moov' | 'cod'
 }
 
@@ -64,7 +65,7 @@ export async function getWhatsappConfig() {
 // ─────────────────────────────────────────────
 
 function formatMessage(params: WaMessageParams): string {
-  const { orderId, orderUrl, customerName, deliveryAddress, items, total, paymentMethod } = params
+  const { orderId, orderUrl, customerName, deliveryAddress, items, total, deliveryFee, paymentMethod } = params
 
   const lignes = items.map((item) => {
     const variante = [item.size, item.color].filter(Boolean).join(' / ')
@@ -91,6 +92,7 @@ function formatMessage(params: WaMessageParams): string {
     'Récapitulatif :',
     ...lignes,
     '',
+    `Livraison : ${deliveryFee.toLocaleString('fr-FR')} FCFA`,
     `Total : ${total.toLocaleString('fr-FR')} FCFA`,
     '',
     `Suivi de commande : ${orderUrl}`,

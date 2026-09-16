@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth-guards'
 import { peekCart } from '@/lib/actions/cart'
 import { getMyDeliveryAddress } from '@/lib/actions/checkout'
+import { getZones } from '@/lib/data/zones'
 import { CheckoutFlow } from '@/components/storefront/checkout/checkout-flow'
 
 export const metadata = { title: 'Commander — Louisa Shopping' }
@@ -26,11 +27,14 @@ async function CheckoutContents() {
   if (cart.items.length === 0) redirect('/panier')
 
   const total = cart.items.reduce((s, i) => s + i.unitPrice * i.qty, 0)
-  const defaultAddress = await getMyDeliveryAddress()
+  const [defaultAddress, zones] = await Promise.all([
+    getMyDeliveryAddress(),
+    getZones(),
+  ])
 
   return (
     <div className="mt-6">
-      <CheckoutFlow items={cart.items} total={total} defaultAddress={defaultAddress} />
+      <CheckoutFlow items={cart.items} total={total} defaultAddress={defaultAddress} zones={zones} />
     </div>
   )
 }

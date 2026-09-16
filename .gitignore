@@ -8,7 +8,6 @@ out
 .netlify
 .DS_Store
 *.log
-drizzle/meta
 .lighthouseci
 
 # Sentry Config File

@@ -82,6 +82,12 @@ async function OrdersList() {
                 <span className="font-semibold text-ls-gray-900">{formatPrice(o.total)}</span>
               </div>
               <div className="flex justify-between gap-3">
+                <span className="text-ls-gray-500">
+                  Livraison{o.deliveryZoneLabel ? ` (${o.deliveryZoneLabel})` : ""}
+                </span>
+                <span>{formatPrice(o.deliveryFee)}</span>
+              </div>
+              <div className="flex justify-between gap-3">
                 <span className="text-ls-gray-500">Règlement</span>
                 <span>{PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}</span>
               </div>

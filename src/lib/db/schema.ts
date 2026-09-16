@@ -533,6 +533,18 @@ export const order = pgTable(
      * avant cette colonne.
      */
     deliveryAddress: jsonb("delivery_address"),
+    /**
+     * Frais de livraison figé au moment de la commande (même logique que
+     * items_snapshot et delivery_address : le vendeur livre contre la
+     * commande, pas contre un barème qui peut changer ensuite). FCFA.
+     */
+    deliveryFee: integer("delivery_fee").notNull().default(0),
+    /**
+     * Nom de zone figé au moment de la commande (`zone.nom`), pas une FK :
+     * la zone peut être renommée ou supprimée sans réécrire l'historique.
+     * Nullable pour les commandes créées avant cette colonne.
+     */
+    deliveryZoneLabel: text("delivery_zone_label"),
     // Renseigné par l'admin à la validation (confirmed) — cf. contrat B
     whatsappRef: text("whatsapp_ref"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -671,6 +683,14 @@ export const review = pgTable(
     ratingRange: check(
       "review_rating_check",
       sql`${t.rating} >= 1 AND ${t.rating} <= 5`
+    ),
+    // Filet BASE DE DONNÉES : un client ne note un produit qu'une fois. La
+    // garde applicative vient en T6 (createReview) ; celui-ci tient même si
+    // un futur chemin de code l'oublie (même logique que
+    // stock_ledger_order_variant_reason_uniq plus haut dans ce fichier).
+    customerProductUniq: uniqueIndex("review_customer_product_uniq").on(
+      t.customerId,
+      t.productId
     ),
   })
 );
