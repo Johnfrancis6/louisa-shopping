@@ -108,16 +108,32 @@ async function CatalogueResults({ searchParams }: { searchParams: SearchParams }
   )
 }
 
+/**
+ * Doit reproduire la structure réelle, sinon le contenu qui arrive décale la
+ * page : toolbar empilée sous `sm:` comme la vraie, et card = nom → image
+ * carrée → ligne prix + bouton rond (et non un bloc `aspect-[3/4]`).
+ */
 function CatalogueResultsSkeleton() {
   return (
     <>
-      <div className="mt-8 flex items-center justify-between gap-3 px-4 md:px-12">
-        <div className="ls-skeleton h-11 w-40 rounded-ls-sm" />
-        <div className="ls-skeleton h-11 w-24 rounded-ls-sm" />
+      <div className="mt-8 flex flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between md:px-12">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="ls-skeleton h-4 w-20 rounded-ls-xs" />
+          <div className="ls-skeleton h-11 w-full rounded-ls-sm sm:w-44" />
+        </div>
+        <div className="ls-skeleton h-11 w-28 rounded-ls-sm" />
       </div>
+
       <div className="mt-6 grid grid-cols-2 gap-4 px-4 md:grid-cols-3 md:px-12 lg:grid-cols-4">
         {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className="ls-skeleton aspect-[3/4] rounded-ls-md" />
+          <div key={i} className="rounded-ls-md bg-ls-white p-3 shadow-ls-card">
+            <div className="ls-skeleton h-4 w-3/4 rounded-ls-xs" />
+            <div className="ls-skeleton mt-2 aspect-square rounded-ls-sm" />
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="ls-skeleton h-5 w-20 rounded-ls-xs" />
+              <div className="ls-skeleton h-10 w-10 shrink-0 rounded-full" />
+            </div>
+          </div>
         ))}
       </div>
     </>

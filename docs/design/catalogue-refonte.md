@@ -1,7 +1,8 @@
 # Refonte `/catalogue` — journal & reprise
 
-Branche `test/ci`. Session 2026-09-09. **Non committé.** `npm run verify` vert
-après chaque étape.
+Étapes 1–5 : branche `test/ci`, session 2026-09-09.
+Étape 6 : branche `fix/backend-audit-livraison`, audit frontend bloc 3,
+2026-09-16 — **committée**. `npm run verify` vert après chaque étape.
 
 Suite de la refonte design du storefront (la home `/` est la référence de
 cohérence). Voir [README.md](README.md) et [new-page-checklist.md](new-page-checklist.md).
@@ -63,45 +64,65 @@ Bornes des tranches de prix : proposées d'après la démo (6 500 → 285 000 F)
 
 ---
 
-## Étape 6 — RESTE À FAIRE
+## Étape 6 — LIVRÉE (audit frontend bloc 3, 2026-09-16)
 
-Fichiers : `catalogue/page.tsx`, `catalogue/product-grid.tsx`, éventuellement
-`catalogue/product-card.tsx`.
+Fichiers : `catalogue/page.tsx`, `catalogue/product-grid.tsx`.
+Les quatre points sont traités (le 4ᵉ partiellement — voir ci-dessous).
 
-1. **Skeleton produit calqué sur la vraie card.** `CatalogueResultsSkeleton`
-   utilise encore `aspect-[3/4]` → ne correspond pas à la card réelle
-   (nom + SKU en tête → image carrée `aspect-square` → ligne prix + bouton rond).
-   Reproduire cette structure pour supprimer le saut de mise en page.
-2. **État vide** (`ProductGrid`, `items.length === 0`) : actuellement un `<p>`
-   centré. Ajouter une icône (encre, `size={28}`), un message, et — si des
-   filtres sont actifs — un bouton **« Réinitialiser les filtres »** (réutiliser
-   la logique `FILTER_PARAMS` de `active-filters.tsx`, à extraire dans
-   `catalog-filters.ts`). Style proche des cartes SAV de la home.
-3. **A11y scroll infini** (`ProductGrid`) : la sentinelle est `aria-hidden`,
-   « Chargement… » est un `<p>` nu. Ajouter `aria-live="polite"` sur la zone de
-   statut + un vrai bouton **« Charger plus de produits »** (déclenchable au
-   clavier) en complément de l'`IntersectionObserver`.
-4. **État d'erreur** (optionnel) : `getProducts` catch → `{ items: [], total: 0 }`,
-   indistinguable de « aucun résultat ». Ajouter un flag `error` au retour si on
-   veut différencier le message.
+1. ✅ **Skeleton produit calqué sur la vraie card.** `CatalogueResultsSkeleton`
+   reproduit maintenant nom → image `aspect-square` → ligne prix + bouton rond,
+   et la toolbar s'y empile sous `sm:` comme la vraie. L'ancien bloc
+   `aspect-[3/4]` décalait la page à l'arrivée du contenu.
+2. ✅ **État vide** (`ProductGrid`) : carte bordée façon carte SAV — icône encre
+   `size={28}`, message distinct selon qu'il y a des filtres ou non, et un lien
+   **« Réinitialiser les filtres »** quand il y en a. C'est un `<Link>`, pas un
+   bouton : l'URL cible se reconstruit depuis `filters` via
+   `catalogFiltersToSearchParams` (`categorie` et `tri` conservés), donc sans
+   dupliquer `FILTER_PARAMS` ni passer par le client.
+3. ✅ **A11y scroll infini** (`ProductGrid`) : région `role="status"
+   aria-live="polite"` annonçant le nombre de produits affichés, et vrai bouton
+   **« Charger plus de produits »** en complément de l'`IntersectionObserver`.
+4. ⚠️ **État d'erreur** (partiel) : un échec de **pagination** est désormais
+   rattrapé (le bouton passe à « Réessayer »). En revanche `getProducts` catch
+   toujours → `{ items: [], total: 0 }`, donc un échec du **premier** chargement
+   reste indistinguable de « aucun résultat ». Il faudrait un flag `error` au
+   retour de `getProducts` — non fait, ça touche la couche données.
+
+Écarts trouvés en plus pendant l'audit, corrigés au passage :
+
+- Le **skeleton de la grille de catégories** omettait le titre « Catégories » :
+  l'arrivée du vrai contenu poussait toute la page.
+- Le **panneau de filtres gardait un état périmé**. Ses `useState` ne lisaient
+  l'URL qu'au montage et il ne se démonte pas : retirer un filtre par une chip
+  puis rouvrir le panneau réaffichait l'ancienne sélection, que « Voir les
+  résultats » réappliquait — le retrait était annulé. Le panneau est maintenant
+  contrôlé et se re-synchronise à chaque ouverture. (Le présent journal affirmait
+  que `bracketFor()` « re-sélectionne à l'ouverture » : c'était faux, un
+  `useState(initial)` ne se réévalue pas.)
+- **Double chargement possible** au défilement : la garde était `isPending`, lu
+  dans la closure de l'observateur. Passée en `ref`.
+- Les **chips passent de `h-9` à `h-11`** (voir la note de dette ci-dessous).
 
 ---
 
 ## Notes / dette
 
-- **`src/app/globals.css` (working tree, hors périmètre)** : un commentaire
-  contient la chaîne littérale `rounded-[--radius-ls-md]` → Tailwind v4 la scanne
-  et compile `border-radius:--radius-ls-md` (cassé) dans le CSS. Le HEAD écrivait
-  `rounded-[--radius-ls-*]` (avec `*`). `grep "border-radius:--radius"
-  .next/static/**/*.css` → 1. À reformuler par l'auteur de la refonte
-  `globals.css`.
-- Chips à `h-9` (36 px) : sous le plancher tactile 44 px du checklist, mais
-  cohérent avec les autres contrôles de filtre. À confirmer.
+- ~~**`src/app/globals.css`** : un commentaire contenant `rounded-[--radius-ls-md]`
+  était scanné par Tailwind et compilait une règle cassée.~~ **Résolu** par le
+  `source("../")` de `globals.css`, qui restreint le scan à `src/`.
+  `grep -c "border-radius:--radius" .next/static/chunks/*.css` → 0.
+- ~~Chips à `h-9` (36 px)~~ **Résolu** : passées à `h-11`. La justification
+  (« cohérent avec les autres contrôles de filtre ») ne tenait pas — le tri, le
+  bouton « Filtres » et les toggles du panneau sont tous à `h-11`. Les chips
+  étaient donc à la fois sous le plancher tactile et incohérentes.
 - `SortControl` et le `<select>` prix du sheet dupliquent le markup `<select> +
   ChevronDown` → extraire un `<SelectField>` présentational si un 3ᵉ apparaît.
-- Docs design à mettre à jour en fin de refonte : `layout-and-chrome.md` +
-  `components.md` + `tokens.md` (`shadow-ls-sheet`) pour la sidebar filtres ;
-  `components.md` pour la tuile catégorie active (violet, plus `border-ls-gray-900`).
+- ~~Docs design à mettre à jour en fin de refonte.~~ **Fait** : `components.md`
+  porte la tuile catégorie active en violet, l'anatomie du panneau de filtres
+  latéral, les contrôles à `h-11`, l'état vide et le chargement de la suite.
+  `shadow-ls-sheet` reste décrit dans `tokens.md` comme un token de bottom sheet —
+  il n'est plus utilisé par le panneau de filtres, devenu latéral. À supprimer ou
+  à réaffecter le jour où plus rien ne monte du bas.
 
 ---
 
@@ -109,6 +130,7 @@ Fichiers : `catalogue/page.tsx`, `catalogue/product-grid.tsx`, éventuellement
 
 ```bash
 npm run verify
-grep -rc "border-radius:--radius" .next/static/**/*.css   # attendu 0 (voir dette globals.css)
+grep -c "border-radius:--radius" .next/static/chunks/*.css   # attendu 0
+grep -o "\.text-ls-h1{[^}]*}" .next/static/chunks/*.css     # doit dire font:, pas font-size:
 grep -rn "À COMPLÉTER" src/
 ```

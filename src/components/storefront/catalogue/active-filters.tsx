@@ -12,6 +12,11 @@ const FILTER_PARAMS = ['prixMin', 'prixMax', 'couleurs', 'tailles', 'enStock'] a
  * navigue (params préservés). « Tout effacer » vide prix/couleur/taille/stock
  * mais garde `categorie` (navigation contextuelle) et `tri`.
  * Rendu `null` si aucun filtre → aucun impact de mise en page.
+ *
+ * `h-11` comme le tri et le bouton « Filtres » : le journal de refonte
+ * justifiait `h-9` par la cohérence avec « les autres contrôles de filtre »,
+ * qui sont tous à 44px. C'était donc à la fois sous le plancher tactile et
+ * incohérent.
  */
 export function ActiveFilters() {
   const router = useRouter()
@@ -86,7 +91,7 @@ export function ActiveFilters() {
           type="button"
           onClick={chip.remove}
           aria-label={`Retirer le filtre : ${chip.label}`}
-          className="group inline-flex h-9 items-center gap-1.5 rounded-full border border-ls-gray-200 bg-ls-white pl-3 pr-2 text-ls-label font-medium text-ls-gray-700 transition-[border-color] duration-[var(--duration-ls-fast)] ease-[var(--ease-ls-out)] md:hover:border-ls-gray-500"
+          className="group inline-flex h-11 items-center gap-1.5 rounded-full border border-ls-gray-200 bg-ls-white pl-3 pr-2 text-ls-label font-medium text-ls-gray-700 transition-[border-color] duration-[var(--duration-ls-fast)] ease-[var(--ease-ls-out)] md:hover:border-ls-gray-500"
         >
           {chip.label}
           <X
@@ -98,7 +103,7 @@ export function ActiveFilters() {
       <button
         type="button"
         onClick={() => push((p) => FILTER_PARAMS.forEach((k) => p.delete(k)))}
-        className="inline-flex h-9 items-center rounded-full px-3 text-ls-label font-semibold text-ls-violet-dark transition-colors duration-[var(--duration-ls-fast)] md:hover:text-ls-violet"
+        className="inline-flex h-11 items-center rounded-full px-3 text-ls-label font-semibold text-ls-violet-dark transition-colors duration-[var(--duration-ls-fast)] md:hover:text-ls-violet"
       >
         Tout effacer
       </button>

@@ -67,10 +67,29 @@ function FiltersSheetInner({
 
   const current = parseCatalogFilters(Object.fromEntries(searchParams.entries()))
 
+  const [open, setOpen] = useState(false)
   const [bracket, setBracket] = useState(bracketFor(current.prixMin, current.prixMax))
   const [couleurs, setCouleurs] = useState<string[]>(current.couleurs ?? [])
   const [tailles, setTailles] = useState<string[]>(current.tailles ?? [])
   const [enStock, setEnStock] = useState(Boolean(current.enStockUniquement))
+
+  /**
+   * Re-synchronise le formulaire sur l'URL à CHAQUE ouverture.
+   *
+   * Les `useState` ci-dessus ne lisent `current` qu'au montage, et le composant
+   * ne se démonte pas quand l'URL change : retirer un filtre par une chip, puis
+   * rouvrir le panneau, affichait encore l'ancienne sélection — et
+   * « Voir les résultats » la réappliquait, annulant le retrait.
+   */
+  function onOpenChange(next: boolean) {
+    if (next) {
+      setBracket(bracketFor(current.prixMin, current.prixMax))
+      setCouleurs(current.couleurs ?? [])
+      setTailles(current.tailles ?? [])
+      setEnStock(Boolean(current.enStockUniquement))
+    }
+    setOpen(next)
+  }
 
   function apply() {
     const b = PRICE_BRACKETS.find((x) => x.id === bracket) ?? PRICE_BRACKETS[0]
@@ -95,7 +114,7 @@ function FiltersSheetInner({
   }
 
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger className={cn(buttonVariants({ variant: 'outline' }), 'h-11 gap-2')}>
         <FiltersTriggerLabel activeCount={activeCount} />
       </SheetTrigger>

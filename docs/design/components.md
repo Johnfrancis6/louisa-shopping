@@ -21,8 +21,8 @@ Règle : **filet OU ombre, pas les deux** au repos.
 
 | Card | Fichier | Style |
 |---|---|---|
-| **Produit (catalogue)** | `catalogue/product-card.tsx` | `rounded-ls-md bg-ls-white p-3 shadow-ls-card` ; nom + SKU **en tête**, image `object-contain` encadrée (`rounded-ls-sm`, inset), prix `text-[19px] font-semibold`, bouton rond `h-10`. Hover desktop : `md:hover:-translate-y-0.5 md:hover:shadow-ls-card-hover`. Classe `ls-reveal`. |
-| **Tuile catégorie (/catalogue)** | `catalogue/category-grid.tsx` | box bordée `rounded-ls-md border border-ls-gray-200 bg-ls-white p-3`, image `object-contain`, libellé + « N articles ». Active : `border-ls-gray-900`. Fallback SVG grille si pas d'image. |
+| **Produit (catalogue)** | `catalogue/product-card.tsx` | `rounded-ls-md bg-ls-white p-3 shadow-ls-card` ; nom + SKU **en tête**, image `object-contain` encadrée (`rounded-ls-sm`, inset), prix `text-[19px] font-semibold`, bouton rond `h-10`. Hover desktop : `md:hover:-translate-y-0.5 md:hover:shadow-ls-card-hover`. Classe `ls-reveal`. ⚠️ Deux écarts connus, non corrigés (fichier en cours de modification côté utilisateur) : le nom du produit est un `<p>` et non un `<h3>`, et le bouton rond fait 40px — sous le plancher tactile alors que c'est l'ajout au panier. |
+| **Tuile catégorie (/catalogue)** | `catalogue/category-grid.tsx` | box bordée `rounded-ls-md border border-ls-gray-200 bg-ls-white p-3`, image `object-contain`, libellé + « N articles ». Active : **`border-ls-violet bg-ls-violet-bg`** ; survol `md:hover:border-ls-violet-tint`. Fallback SVG grille si pas d'image. |
 | **Bloc catégorie (home)** | `home/category-showcase.tsx` | tout le bloc = **un `<Link>`** : accroche (eyebrow) + image `aspect-[3/2] rounded-ls-xl shadow-ls-showcase` (nom en `<h3>` chip blanc bas-droite) + faux-bouton « Voir le catalogue · N articles ». `aria-label` porte le nom. `md:group-hover:scale-[1.03]` sur l'image. |
 | **Carte SAV (home)** | `home/home-sections.tsx` | `rounded-ls-md border border-ls-gray-200 bg-ls-white p-5 min-h-40` : icône encre `size={28}` en haut, `<h3>`, description, lien « En savoir plus → » poussé en bas (`mt-auto`). ⚠️ Les trois cartes pointent sur `/#contact` : le libellé promet un approfondissement et livre un bloc de contact. À arbitrer (relibeller, ou créer les pages de destination). |
 | **Étape process (home)** | `home/home-sections.tsx` | `rounded-ls-md bg-ls-white p-5 ring-1 ring-ls-violet-tint` (sur fond violet) : badge numéro rond `bg-ls-violet`, placeholder illustration `border-dashed`, texte. |
@@ -63,6 +63,32 @@ L'état `début / fin` se mesure sur le **défilement réel**
 (`scrollLeft + clientWidth >= scrollWidth`), jamais sur l'index du bloc courant :
 le dernier bloc n'atteint jamais le bord gauche de la piste, donc « suivant » ne se
 désactivait jamais.
+
+## Contrôles du catalogue
+
+Tous à **`h-11`** : tri (`sort-control.tsx`), bouton « Filtres », chips de filtres
+actifs (`active-filters.tsx`), et les `ToggleGroupItem` / `Toggle` du panneau.
+
+**Panneau de filtres** (`filters-sheet.tsx`) : `Sheet side="right"`, pleine
+hauteur — plus un bottom sheet (le token `shadow-ls-sheet`, pensé pour une
+feuille montant du bas, ne s'y applique donc plus ; c'est le `shadow-lg` du
+primitif qui opère). Pied : « Réinitialiser » (remet le formulaire à zéro, sans
+naviguer) + « Voir les résultats » (applique et ferme).
+
+Le panneau est **contrôlé** et se re-synchronise sur l'URL à chaque ouverture :
+ses `useState` ne lisent les paramètres qu'au montage, et il ne se démonte pas
+quand l'URL change. Sans cette resynchronisation, retirer un filtre par une chip
+puis rouvrir le panneau réaffichait l'ancienne sélection, que « Voir les
+résultats » réappliquait.
+
+**État vide de la grille** (`product-grid.tsx`) : carte bordée façon carte SAV —
+icône encre `size={28}`, message, et un lien « Réinitialiser les filtres »
+(`categorie` et `tri` conservés) seulement si des filtres sont actifs.
+
+**Chargement de la suite** : `IntersectionObserver` (`rootMargin: 600px`) **plus**
+un vrai bouton « Charger plus de produits », qui est le chemin clavier et le filet
+quand l'observateur ne se déclenche pas. Une région `role="status"` annonce le
+nombre de produits affichés.
 
 ## Modale de recherche — anatomie
 

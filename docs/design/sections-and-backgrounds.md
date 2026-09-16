@@ -72,4 +72,11 @@ contenu arrive (cf. `CategoryShowcaseSkeleton`).
 
 Classe CSS pure (scroll-driven, `animation-timeline: view()`), voir [motion.md](motion.md).
 À poser sur les éléments répétés qui entrent par le bas (cards produit, tuiles,
-blocs catégorie). **Jamais** sur un élément visible au premier écran sans scroll.
+blocs catégorie).
+
+Un élément déjà dans le viewport au chargement est à 100 % de progression de
+`view()`, donc **visible au repos** : `.ls-reveal` au-dessus de la ligne de
+flottaison est sans danger (c'est le cas des tuiles de `/catalogue`). Ce qui est
+interdit, c'est de parquer un élément à `opacity: 0` en attendant un observateur
+ou un scroll — cf. [motion.md § « visible au repos »](motion.md). Cette page
+disait « jamais au premier écran », ce qui contredisait motion.md.

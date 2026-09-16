@@ -108,16 +108,21 @@ function CategoryTile({
   )
 }
 
+/** Inclut le titre « Catégories » : sans lui, l'arrivée du vrai contenu
+ *  poussait toute la page de la hauteur du titre. */
 export function CategoryGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 px-4 pt-6 sm:grid-cols-3 md:grid-cols-4 md:px-12 lg:grid-cols-6">
-      {Array.from({ length: 6 }, (_, i) => (
-        <div key={i} className="rounded-ls-md border border-ls-gray-200 p-3">
-          <div className="ls-skeleton aspect-square rounded-ls-sm" />
-          <div className="ls-skeleton mt-2 h-4 w-2/3 rounded-ls-xs" />
-          <div className="ls-skeleton mt-1.5 h-3 w-1/3 rounded-ls-xs" />
-        </div>
-      ))}
+    <div className="px-4 pt-6 md:px-12">
+      <div className="ls-skeleton mb-3 h-4 w-24 rounded-ls-xs" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="rounded-ls-md border border-ls-gray-200 p-3">
+            <div className="ls-skeleton aspect-square rounded-ls-sm" />
+            <div className="ls-skeleton mt-2 h-4 w-2/3 rounded-ls-xs" />
+            <div className="ls-skeleton mt-1.5 h-3 w-1/3 rounded-ls-xs" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
