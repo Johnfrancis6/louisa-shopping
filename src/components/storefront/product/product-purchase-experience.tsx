@@ -25,8 +25,14 @@ import type { ProductDetail } from '@/types/catalog'
  * variante correspondante est désactivée plutôt que masquée (on garde la taille visible
  * pour que l'utilisateur comprenne qu'elle existe mais pas dans cette couleur).
  *
- * CTA sticky mobile positionné à `bottom-16` (pas `bottom-0`) pour ne pas recouvrir la
- * bottom nav globale du layout storefront (h-16) — assomption à valider visuellement.
+ * Les blocs couleur / taille sont CENTRÉS, à la différence du reste de la fiche
+ * (titre, prix, stock, description restent alignés à gauche) : ce sont des
+ * contrôles, pas du texte courant, et centrés ils se lisent comme un groupe
+ * distinct de la galerie qui les précède.
+ *
+ * CTA sticky mobile calé sur `bottom-[var(--ls-bottom-nav-h)]` pour ne pas
+ * recouvrir la bottom nav globale du layout storefront ; le conteneur réserve
+ * la place avec `pb-40 md:pb-0`.
  */
 export function ProductPurchaseExperience({ product }: { product: ProductDetail }) {
   const colors = useMemo(
@@ -124,9 +130,13 @@ export function ProductPurchaseExperience({ product }: { product: ProductDetail 
         </div>
 
         {/* Miniatures — toutes les photos du produit, cliquables. Masquées s'il
-            n'y en a qu'une : une seule vignette n'apporte rien. */}
+            n'y en a qu'une : une seule vignette n'apporte rien.
+            `py-1` et non `pb-1` : `overflow-x-auto` force `overflow-y` à `auto`,
+            donc le conteneur rogne. L'anneau `ring-2 ring-offset-2` de la
+            miniature active déborde de 4px en haut comme en bas — il était coupé
+            net sur le dessus. */}
         {galleryImages.length > 1 && (
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-2 flex gap-2 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {galleryImages.map((src, i) => (
               <button
                 key={src}
@@ -167,11 +177,18 @@ export function ProductPurchaseExperience({ product }: { product: ProductDetail 
 
         {colors.length > 0 && (
           <div className="mt-4 border-t border-ls-gray-200 pt-4">
-            <p className="text-ls-body text-ls-gray-500">
+            <p className="text-center text-ls-body text-ls-gray-500">
               <span className="font-medium text-ls-gray-900">Couleur : </span>
               {selectedColor}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {/* ⚠️ `colorVariant.imageUrl` est la MÊME image pour toutes les
+                  variantes : `media` est rattachée au produit, pas à la variante
+                  (data/products.ts → toVariant reçoit `firstImage`). Toutes les
+                  pastilles affichent donc la photo principale, ce qui donne
+                  l'impression qu'elle déborde sur le bloc des variantes. Le nom
+                  de la couleur est affiché sous chaque pastille pour les
+                  distinguer, en attendant un vrai visuel par variante. */}
               {colors.map((color) => {
                 const colorVariant = product.variants.find((v) => v.color === color)
                 return (
@@ -181,22 +198,36 @@ export function ProductPurchaseExperience({ product }: { product: ProductDetail 
                     aria-label={color}
                     aria-pressed={selectedColor === color}
                     onClick={() => setSelectedColor(color)}
-                    className={cn(
-                      'relative h-14 w-14 overflow-hidden rounded-ls-sm border bg-ls-gray-50',
-                      selectedColor === color
-                        ? 'border-2 border-ls-gray-900'
-                        : 'border-ls-gray-200',
-                    )}
+                    className="flex w-14 flex-col items-center gap-1"
                   >
-                    {colorVariant?.imageUrl && (
-                      <Image
-                        src={colorVariant.imageUrl}
-                        alt={color}
-                        fill
-                        sizes="56px"
-                        className="object-cover"
-                      />
-                    )}
+                    <span
+                      className={cn(
+                        'relative h-14 w-14 overflow-hidden rounded-ls-sm border bg-ls-gray-50',
+                        selectedColor === color
+                          ? 'border-2 border-ls-gray-900'
+                          : 'border-ls-gray-200',
+                      )}
+                    >
+                      {colorVariant?.imageUrl && (
+                        <Image
+                          src={colorVariant.imageUrl}
+                          alt=""
+                          fill
+                          sizes="56px"
+                          className="object-cover"
+                        />
+                      )}
+                    </span>
+                    <span
+                      className={cn(
+                        'w-full truncate text-center text-[11px] leading-tight',
+                        selectedColor === color
+                          ? 'font-medium text-ls-gray-900'
+                          : 'text-ls-gray-500',
+                      )}
+                    >
+                      {color}
+                    </span>
                   </button>
                 )
               })}
@@ -206,11 +237,13 @@ export function ProductPurchaseExperience({ product }: { product: ProductDetail 
 
         {sizes.length > 0 && (
           <div className="mt-4 border-t border-ls-gray-200 pt-4">
-            <p className="mb-3 text-ls-body font-medium text-ls-gray-900">Taille</p>
+            <p className="mb-3 text-center text-ls-body font-medium text-ls-gray-900">
+              Taille
+            </p>
             <ToggleGroup
               value={selectedSize ? [selectedSize] : []}
               onValueChange={(value) => setSelectedSize(value[0] ?? null)}
-              className="justify-start gap-2"
+              className="flex-wrap justify-center gap-2"
             >
               {sizes.map((size) => (
                 <ToggleGroupItem
