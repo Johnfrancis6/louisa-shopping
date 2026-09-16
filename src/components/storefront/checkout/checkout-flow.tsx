@@ -51,6 +51,14 @@ export function CheckoutFlow({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod')
   const [loading, setLoading] = useState(false)
 
+  // Généré UNE SEULE fois au montage — l'initialiseur passé à useState n'est
+  // exécuté qu'au premier rendu, jamais aux re-rendus suivants (contrairement
+  // à `useState(crypto.randomUUID())`, qui rappellerait randomUUID() à chaque
+  // rendu même si seule la première valeur est retenue). Sert de clé de
+  // verrou anti double-clic côté serveur (createOrder) : un second clic avec
+  // ce même id ne recrée pas de commande.
+  const [clientRequestId] = useState(() => crypto.randomUUID())
+
   const address: DeliveryAddress = {
     fullName: fullName.trim(),
     phone: phone.trim(),
@@ -83,7 +91,7 @@ export function CheckoutFlow({
     // zoneId seul est transmis — le frais n'est jamais envoyé par le client,
     // createOrder le relit et le recalcule en base (même principe que le prix
     // des articles).
-    const res = await createOrder({ address, paymentMethod, zoneId })
+    const res = await createOrder({ address, paymentMethod, zoneId, clientRequestId })
     if (!res.success) {
       setLoading(false)
       toast.error(res.error ?? 'Impossible de finaliser la commande.')
@@ -280,7 +288,7 @@ export function CheckoutFlow({
             <Button
               type="button"
               onClick={handleConfirm}
-              disabled={loading || !zoneId}
+              disabled={loading}
               className="h-11 bg-ls-violet text-ls-white hover:bg-ls-violet-dark"
             >
               {loading ? 'Création…' : 'Valider ma commande'}

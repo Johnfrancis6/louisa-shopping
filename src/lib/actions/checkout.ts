@@ -23,6 +23,7 @@
 
 'use server'
 
+import { Redis } from '@upstash/redis'
 import { dbAdmin, dbAnon } from '@/lib/db/client'
 import { orders, orderItems, variants, products, customer } from '@/lib/db/schema'
 import { and, eq, inArray } from 'drizzle-orm'
@@ -32,6 +33,20 @@ import { readSnapshot } from '@/lib/orders-display'
 import { getZones } from '@/lib/data/zones'
 import type { DeliveryZone } from '@/types/catalog'
 import { getCart, clearCart } from './cart'
+
+// ─────────────────────────────────────────────
+// Client Redis (verrou d'idempotence commande)
+// ─────────────────────────────────────────────
+// `src/lib/actions/cart.ts` est aussi 'use server' : ses consts ne sont pas
+// ré-exportables, on instancie donc un client dédié ici — même pattern que
+// src/lib/data/cart.ts (client séparé, même URL/token, pas de state partagé).
+const redis = new Redis({
+  url:   process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
+
+/** clientRequestId doit être un UUID — on ne construit jamais une clé Redis à partir d'une chaîne cliente non validée. */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // ─────────────────────────────────────────────
 // Types
@@ -57,6 +72,11 @@ export interface CheckoutInput {
   paymentMethod: 'mobile_money_orange' | 'mobile_money_moov' | 'cod'
   /** Zone de livraison choisie — le frais est résolu côté serveur, jamais transmis par le client */
   zoneId:        string
+  /**
+   * UUID généré une seule fois au montage de CheckoutFlow (jamais régénéré
+   * entre deux clics) — sert de clé de verrou anti double-clic. Voir §4.
+   */
+  clientRequestId: string
 }
 
 const PHONE_REGEX = /^\+?[0-9\s-]{8,20}$/
@@ -123,8 +143,9 @@ const PAYMENT_METHODS = ['mobile_money_orange', 'mobile_money_moov', 'cod'] as c
 /**
  * createOrder — étape finale du tunnel checkout.
  * 1. Session Better Auth.  2. Panier Redis.  3. Re-résolution prix/libellés
- * en base.  4. Transaction Order + OrderItems.  5. Vide le panier.
- * 6. Lien wa.me.
+ * en base, puis dédoublonnage par variante (3bis), contrôle de stock (3ter),
+ * frais de livraison (3quater) et verrou d'idempotence (3quinquies).
+ * 4. Transaction Order + OrderItems.  5. Vide le panier.  6. Lien wa.me.
  */
 export async function createOrder(input: CheckoutInput): Promise<CheckoutResult> {
   // ── 1. Auth ───────────────────────────────────
@@ -139,6 +160,9 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
   }
   if (!PAYMENT_METHODS.includes(input.paymentMethod)) {
     return { success: false, error: 'Mode de paiement invalide' }
+  }
+  if (!UUID_REGEX.test(input.clientRequestId ?? '')) {
+    return { success: false, error: 'Requête invalide' }
   }
 
   // ── 2. Panier ─────────────────────────────────
@@ -160,6 +184,7 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
       basePrice:     products.basePrice,
       hasTutorial:   products.hasTutorial,
       deliveryZones: products.deliveryZones,
+      stockQty:      variants.stockQty,
     })
     .from(variants)
     .innerJoin(products, eq(variants.productId, products.id))
@@ -190,10 +215,57 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
       error: 'Un article de votre panier n\'est plus disponible — vérifiez votre panier.',
     }
   }
-  const items = lines as NonNullable<(typeof lines)[number]>[]
+  const rawItems = lines as NonNullable<(typeof lines)[number]>[]
+
+  // ── 3bis. Dédoublonnage par variante ──────────────────────────────────────
+  // `stock_ledger` porte un index unique partiel sur (order_id, variant_id,
+  // reason) — stock_ledger_order_variant_reason_uniq, voir src/lib/db/schema.ts.
+  // Si le panier contient deux fois la même variante (deux lignes distinctes
+  // pour une raison quelconque), insérer deux order_item produirait deux
+  // mouvements de stock identiques à la livraison, violerait cet index et
+  // rendrait la commande définitivement non livrable. On regroupe donc par
+  // variantId, quantités sommées, avant tout calcul et avant l'insert — le
+  // itemsSnapshot et les order_item ci-dessous partagent ce même tableau dédupliqué.
+  const itemsByVariant = new Map<string, (typeof rawItems)[number]>()
+  for (const l of rawItems) {
+    const existing = itemsByVariant.get(l.variantId)
+    if (existing) {
+      existing.qty += l.qty
+    } else {
+      itemsByVariant.set(l.variantId, { ...l })
+    }
+  }
+  const items = [...itemsByVariant.values()]
+
+  // ── 3ter. Vérification du stock (aucune réservation) ───────────────────────
+  // La commande n'est qu'une pré-réservation : le stock ne bouge qu'au passage
+  // confirmed→delivered (cf. en-tête de fichier), jamais ici. Mais une commande
+  // dont la quantité dépasse le stock courant devient DÉFINITIVEMENT non
+  // livrable : deliverOrder (src/lib/actions/orders.ts, applyStockDelta) lève
+  // « Stock insuffisant », sa transaction est annulée, et la commande reste
+  // coincée en `confirmed` sans autre issue que l'annulation (pas de retour à
+  // `pending_whatsapp`, pas de nouvelle tentative de livraison possible). On
+  // refuse donc ici plutôt que de laisser ce cul-de-sac se former à la livraison.
+  // Ce contrôle ne ferme qu'une fenêtre de course, il ne l'élimine pas :
+  // addToCart (src/lib/actions/cart.ts) refuse déjà tout dépassement au moment
+  // de l'ajout au panier, mais deux clients peuvent commander la même variante
+  // au même instant sans se voir l'un l'autre. Et à la différence de la zone
+  // de livraison inconnue (qui, elle, ne bloque JAMAIS la commande — cf. § en
+  // tête de fichier), ce refus n'arbitre pas à la place du commerçant : il
+  // évite seulement une impasse technique, pas un choix commercial.
+  for (const l of items) {
+    const stockQty = byId.get(l.variantId)?.stockQty ?? 0
+    if (l.qty > stockQty) {
+      return {
+        success: false,
+        error: `${l.productName} — Stock disponible : ${stockQty} unité(s)`,
+      }
+    }
+  }
+
   const sousTotal = items.reduce((sum, l) => sum + l.unitPrice * l.qty, 0)
 
-  // ── 3bis. Frais de livraison — résolu côté serveur, jamais transmis par le client ─
+  // ── 3quater. Frais de livraison — résolu côté serveur, jamais transmis par le client ─
   // Zone inconnue ou absente : on NE refuse PAS la commande (cf. règle en tête
   // de fichier). Frais à 0, libellé null — le vendeur tranchera sur WhatsApp.
   const zones = await getZones()
@@ -218,8 +290,37 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
     fraisAnnonces.length > 0 ? Math.max(...fraisAnnonces) : zoneChoisie?.fraisBase ?? 0
   const total = sousTotal + fraisLivraison
 
-  // ── 4. Transaction Order + OrderItems ─────────
+  // ── 3quinquies. Idempotence — verrou anti double-clic ──────────────────────
+  // Un double-clic (ou un retry réseau) sur « Valider ma commande » ne doit
+  // pas créer deux Order. clientRequestId est généré une seule fois au montage
+  // de CheckoutFlow : deux appels successifs avec le même id sont donc bien le
+  // même clic logique. On pose un verrou Redis SET NX juste avant la
+  // transaction ; s'il existe déjà, un appel précédent a gagné la course et on
+  // renvoie SON orderId plutôt que d'en créer un second.
   const orderId = crypto.randomUUID()
+  const lockKey = `order-lock:${input.clientRequestId}`
+  let lockOwnedByUs = false
+  try {
+    const acquired = await redis.set(lockKey, orderId, { nx: true, ex: 120 })
+    if (acquired === null) {
+      // Clé déjà posée par l'appel précédent — on renvoie SA commande.
+      const existingOrderId = await redis.get<string>(lockKey)
+      if (existingOrderId) {
+        return { success: true, orderId: existingOrderId }
+      }
+      // GET revenu vide : course très étroite avec l'expiration du verrou
+      // (TTL 120s). On retombe sur une création normale plutôt que de bloquer
+      // la vente pour un cas aussi marginal.
+    } else {
+      lockOwnedByUs = true
+    }
+  } catch (err) {
+    // Panne Redis : le verrou ne doit JAMAIS bloquer une vente — on perd
+    // seulement la protection anti double-clic pour cet appel-ci.
+    console.error('[checkout] order-lock Redis indisponible — poursuite sans verrou', err)
+  }
+
+  // ── 4. Transaction Order + OrderItems ─────────
   try {
     await dbAdmin.transaction(async (tx) => {
       await tx.insert(orders).values({
@@ -262,6 +363,16 @@ export async function createOrder(input: CheckoutInput): Promise<CheckoutResult>
     })
   } catch (err) {
     console.error('[checkout] Transaction échouée', err)
+    if (lockOwnedByUs) {
+      // La commande n'a finalement pas été créée : on libère le verrou pour
+      // qu'un retry avec le même clientRequestId puisse retenter normalement
+      // au lieu de rester bloqué sur un orderId inexistant.
+      try {
+        await redis.del(lockKey)
+      } catch (delErr) {
+        console.error('[checkout] order-lock libération échouée', delErr)
+      }
+    }
     return { success: false, error: 'Erreur lors de la création de la commande' }
   }
 
