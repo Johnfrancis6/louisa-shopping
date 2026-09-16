@@ -262,7 +262,7 @@ export function SavSection() {
                 href="/#contact"
                 className="mt-auto inline-flex items-center gap-1.5 text-ls-label font-semibold text-ls-violet-dark hover:text-ls-violet"
               >
-                En savoir plus <ArrowRight size={14} />
+                En savoir plus <ArrowRight size={14} aria-hidden />
               </Link>
             </article>
           ))}
@@ -276,33 +276,38 @@ export function SavSection() {
 // Actualités
 // ───────────────────────────────────────────────────────────────────────────
 
-/** Repli. Dates = exemples réalistes à confirmer. */
+/**
+ * Repli. Les dates restent des placeholders : une date précise est un fait dur,
+ * et content-and-copy.md interdit d'en inventer un. `href: null` → pas de lien
+ * « Lire » : il pointait sur `/#actualites`, c'est-à-dire sur la section qui le
+ * contient, donc il ne menait nulle part tout en ayant l'air actif.
+ */
 const NEWS_FALLBACK = [
   {
     id: 'news-fallback-0',
-    eyebrow: '5 septembre 2026',
+    eyebrow: '[Date — À COMPLÉTER]',
     title: 'La sélection saison sèche est arrivée',
     body:
       'De nouveaux modèles d’électroménager, de mode et de cuisine viennent d’entrer en boutique.',
-    href: '/#actualites',
+    href: null as string | null,
     imageUrl: null as string | null,
   },
   {
     id: 'news-fallback-1',
-    eyebrow: '28 août 2026',
+    eyebrow: '[Date — À COMPLÉTER]',
     title: 'La livraison couvre deux nouvelles zones',
     body:
       'Nous étendons notre zone de livraison — vérifiez la vôtre au moment de passer commande.',
-    href: '/#actualites',
+    href: null as string | null,
     imageUrl: null as string | null,
   },
   {
     id: 'news-fallback-2',
-    eyebrow: '20 août 2026',
+    eyebrow: '[Date — À COMPLÉTER]',
     title: 'Suivre sa commande sur WhatsApp, mode d’emploi',
     body:
       'Un guide court pour rester informé à chaque étape, de la validation jusqu’à la livraison.',
-    href: '/#actualites',
+    href: null as string | null,
     imageUrl: null as string | null,
   },
 ]
@@ -317,7 +322,7 @@ export async function NewsSection() {
         eyebrow: block.eyebrow ?? '',
         title: block.title,
         body: block.body ?? '',
-        href: block.href ?? '/#actualites',
+        href: block.href,
         imageUrl: block.imageUrl,
       }))
     : NEWS_FALLBACK
@@ -350,16 +355,18 @@ export async function NewsSection() {
               {item.eyebrow && (
                 <p className="text-ls-label text-ls-gray-500">{item.eyebrow}</p>
               )}
-              <h3 className="text-[15px] font-medium leading-snug text-ls-gray-900">
+              <h3 className="text-[15px] font-semibold leading-snug text-ls-gray-900">
                 {item.title}
               </h3>
               {item.body && <p className="text-ls-body text-ls-gray-600">{item.body}</p>}
-              <Link
-                href={item.href}
-                className="inline-flex items-center gap-1.5 text-ls-label font-semibold text-ls-violet-dark hover:text-ls-violet"
-              >
-                Lire <ArrowRight size={14} />
-              </Link>
+              {item.href && (
+                <Link
+                  href={item.href}
+                  className="inline-flex items-center gap-1.5 text-ls-label font-semibold text-ls-violet-dark hover:text-ls-violet"
+                >
+                  Lire <ArrowRight size={14} aria-hidden />
+                </Link>
+              )}
             </article>
           ))}
         </div>

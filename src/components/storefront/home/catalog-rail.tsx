@@ -17,8 +17,12 @@ import { ArrowRight, ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react
  *  - souris  : drag sur la piste (pointer events, `pointerType === 'mouse'`) ;
  *  - clavier : Tab entre les blocs, le navigateur les amène dans la vue.
  *
- * Le défilement auto s'arrête dès que l'utilisateur touche le composant
- * (survol, focus, drag) et ne démarre pas du tout sous `prefers-reduced-motion`.
+ * Défilement auto : ne démarre pas sous `prefers-reduced-motion`, se met en
+ * pause au survol, et **s'arrête définitivement** à la première interaction
+ * (doigt, souris, clavier, puce, flèche). Sans cet arrêt définitif, la piste
+ * reprenait la main toutes les 4,2 s sur mobile — où il n'y a pas de survol
+ * pour la figer — et déplaçait la vue pendant qu'on lisait ou qu'on visait une
+ * carte. Voir docs/design/motion.md.
  */
 
 export type CatalogRailItem = {
@@ -29,7 +33,7 @@ export type CatalogRailItem = {
   /** Accroche sous le titre — optionnelle. */
   text?: string
   href: string
-  /** URL Cloudinary. `null` → tuile grise, comme le showcase catégories. */
+  /** URL de l'image (ImageKit). `null` → tuile grise, comme le showcase. */
   image?: string | null
 }
 
@@ -48,7 +52,17 @@ export function CatalogRail({
   const trackRef = useRef<HTMLDivElement>(null)
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [stopped, setStopped] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
+
+  // Bords mesurés sur le défilement RÉEL, pas déduits de `index`. Le dernier
+  // bloc n'atteint jamais le bord gauche de la piste : `index === length - 1`
+  // n'arrivait donc pas en fin de course, et la flèche « suivant » restait
+  // active et sans effet une fois la piste au bout.
+  const [edges, setEdges] = useState({ atStart: true, atEnd: false })
+
+  /** Première interaction : on rend la main pour de bon. */
+  const stopAutoplay = useCallback(() => setStopped(true), [])
 
   // `index` est aussi lu dans l'intervalle d'autoplay : un ref évite de
   // recréer l'intervalle à chaque bloc franchi. Tenu à jour dans `syncIndex`
@@ -102,11 +116,27 @@ export function CatalogRail({
     }
     indexRef.current = best
     setIndex(best)
+    setEdges({
+      atStart: track.scrollLeft <= 2,
+      atEnd: track.scrollLeft + track.clientWidth >= track.scrollWidth - 2,
+    })
   }, [])
 
-  // Défilement auto — arrêté si figé, si un seul bloc, ou en reduced-motion.
+  // Mesure initiale + à chaque redimensionnement de la piste : sans ça, une
+  // piste qui tient entièrement à l'écran laisserait « suivant » actif.
   useEffect(() => {
-    if (paused || reducedMotion || items.length < 2) return
+    syncIndex()
+    const track = trackRef.current
+    if (!track) return
+    const observer = new ResizeObserver(syncIndex)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [syncIndex, items.length])
+
+  // Défilement auto — arrêté si l'utilisateur a pris la main, si figé, si un
+  // seul bloc, ou en reduced-motion.
+  useEffect(() => {
+    if (stopped || paused || reducedMotion || items.length < 2) return
     const id = window.setInterval(() => {
       const track = trackRef.current
       if (!track) return
@@ -117,9 +147,12 @@ export function CatalogRail({
       scrollToIndex(atEnd ? 0 : indexRef.current + 1)
     }, AUTOPLAY_MS)
     return () => window.clearInterval(id)
-  }, [paused, reducedMotion, items.length, scrollToIndex])
+  }, [stopped, paused, reducedMotion, items.length, scrollToIndex])
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    // Avant le filtre : un défilement au doigt est une interaction, même si on
+    // laisse ensuite le geste natif tranquille.
+    stopAutoplay()
     // Le tactile a déjà un défilement natif parfait : ne pas s'en mêler.
     if (e.pointerType !== 'mouse') return
     const track = trackRef.current
@@ -158,8 +191,7 @@ export function CatalogRail({
     moved.current = false
   }
 
-  const atStart = index === 0
-  const atEnd = index >= items.length - 1
+  const { atStart, atEnd } = edges
 
   if (items.length === 0) return null
 
@@ -171,7 +203,10 @@ export function CatalogRail({
       aria-label={label}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
+      onFocusCapture={() => {
+        setPaused(true)
+        stopAutoplay()
+      }}
       onBlurCapture={() => setPaused(false)}
     >
       <div
@@ -237,23 +272,39 @@ export function CatalogRail({
       <div className="mt-4 flex items-center justify-between gap-4 px-4 md:px-12">
         <div className="flex items-center gap-2">
           {items.map((item, i) => (
+            // La pastille visible fait 6px de haut ; la cible, elle, fait
+            // 44px (`h-11`) — le plancher tactile de docs/design/components.md.
+            // C'est le seul contrôle du carrousel sur mobile (les flèches sont
+            // en `md:`).
             <button
               key={item.id}
               type="button"
-              onClick={() => scrollToIndex(i)}
+              onClick={() => {
+                stopAutoplay()
+                scrollToIndex(i)
+              }}
               aria-label={`Aller au bloc ${i + 1} : ${item.title}`}
               aria-current={i === index}
-              className={`h-1.5 rounded-full transition-[width,background-color] duration-[var(--duration-ls-fast)] ease-[var(--ease-ls-out)] ${
-                i === index ? 'w-6 bg-ls-violet' : 'w-1.5 bg-ls-gray-300 hover:bg-ls-gray-400'
-              }`}
-            />
+              className="group/dot flex h-11 w-6 shrink-0 items-center justify-center"
+            >
+              <span
+                className={`h-1.5 rounded-full transition-[width,background-color] duration-[var(--duration-ls-fast)] ease-[var(--ease-ls-out)] ${
+                  i === index
+                    ? 'w-6 bg-ls-violet'
+                    : 'w-1.5 bg-ls-gray-300 group-hover/dot:bg-ls-gray-400'
+                }`}
+              />
+            </button>
           ))}
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
           <button
             type="button"
-            onClick={() => scrollToIndex(Math.max(0, index - 1))}
+            onClick={() => {
+              stopAutoplay()
+              scrollToIndex(Math.max(0, index - 1))
+            }}
             disabled={atStart}
             aria-label="Bloc précédent"
             className="flex h-10 w-10 items-center justify-center rounded-full border border-ls-gray-200 bg-ls-white text-ls-gray-900 transition-colors duration-[var(--duration-ls-fast)] hover:bg-ls-gray-100 disabled:opacity-40 disabled:hover:bg-ls-white"
@@ -262,7 +313,10 @@ export function CatalogRail({
           </button>
           <button
             type="button"
-            onClick={() => scrollToIndex(Math.min(items.length - 1, index + 1))}
+            onClick={() => {
+              stopAutoplay()
+              scrollToIndex(Math.min(items.length - 1, index + 1))
+            }}
             disabled={atEnd}
             aria-label="Bloc suivant"
             className="flex h-10 w-10 items-center justify-center rounded-full border border-ls-gray-200 bg-ls-white text-ls-gray-900 transition-colors duration-[var(--duration-ls-fast)] hover:bg-ls-gray-100 disabled:opacity-40 disabled:hover:bg-ls-white"

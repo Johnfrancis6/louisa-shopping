@@ -38,6 +38,20 @@ aussi `motion-safe:` pour les animations en boucle (chevron hero).
 | **Bump badge panier** | cart-badge | `key={count}` + `animate-in zoom-in-50 duration-[var(--duration-ls-bounce)]` (remonte à chaque changement de compte) |
 | **Chevron « scroll »** | hero (mobile) | `motion-safe:animate-bounce`, `text-white/60`, `aria-hidden` |
 | **Skeleton** | `.ls-skeleton` | shimmer `ls-shimmer` 1200 ms |
+| **Défilement auto du rail** | `home/catalog-rail.tsx` | `setInterval` 4200 ms + `scrollBy({behavior:'smooth'})`. Ne démarre pas sous reduced-motion, pause au survol, et **s'arrête définitivement à la première interaction** (`stopAutoplay`). |
+
+### Défilement auto — la règle d'arrêt
+
+Un contenu qui bouge tout seul doit pouvoir être arrêté (WCAG 2.2.2). La pause au
+survol ne suffit pas : sur mobile — la cible principale — il n'y a pas de survol.
+Le rail s'arrête donc **pour de bon** dès que l'utilisateur touche la piste, tabule
+dedans, ou clique une puce / une flèche. Toute future zone qui défile seule doit
+faire pareil.
+
+> **Reste ouvert** : il n'y a pas de bouton pause visible. L'arrêt à la première
+> interaction couvre le cas réel (la vue ne bouge plus pendant qu'on lit), pas la
+> lettre de WCAG 2.2.2, qui demande un mécanisme explicite. À trancher : bouton
+> pause, ou suppression du défilement auto.
 
 ## Règle « visible au repos »
 

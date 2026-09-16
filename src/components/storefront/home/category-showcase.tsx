@@ -67,7 +67,7 @@ export async function CategoryShowcase() {
                 {taglineFor(category.slug, category.name)}
               </p>
 
-              <div className="relative aspect-[3/2] overflow-hidden rounded-ls-xl bg-ls-gray-100 shadow-ls-showcase transition-shadow group-focus-visible:ring-2 group-focus-visible:ring-ls-violet group-focus-visible:ring-offset-2">
+              <div className="relative aspect-[3/2] overflow-hidden rounded-ls-xl bg-ls-gray-100 shadow-ls-showcase group-focus-visible:ring-2 group-focus-visible:ring-ls-violet group-focus-visible:ring-offset-2">
                 {category.image_url ? (
                   <Image
                     src={category.image_url}

@@ -40,6 +40,7 @@ Toute nouvelle section de contenu doit l'utiliser (ou le même pattern).
 |---|---|---|
 | Hero | photo + dégradé `from-black/70` | — |
 | Nos boutiques (showcase) | `bg-ls-white` | — |
+| Sélections (rail) | `bg-ls-gray-50` + `border-t` | — |
 | Process | `bg-ls-violet-bg` + `.ls-glow` en haut | lueur violette |
 | SAV | `bg-ls-white` + `border-t` | `.ls-dots` |
 | Actualités | `bg-ls-gray-50` + `border-t` | — |

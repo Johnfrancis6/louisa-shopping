@@ -24,9 +24,9 @@ Règle : **filet OU ombre, pas les deux** au repos.
 | **Produit (catalogue)** | `catalogue/product-card.tsx` | `rounded-ls-md bg-ls-white p-3 shadow-ls-card` ; nom + SKU **en tête**, image `object-contain` encadrée (`rounded-ls-sm`, inset), prix `text-[19px] font-semibold`, bouton rond `h-10`. Hover desktop : `md:hover:-translate-y-0.5 md:hover:shadow-ls-card-hover`. Classe `ls-reveal`. |
 | **Tuile catégorie (/catalogue)** | `catalogue/category-grid.tsx` | box bordée `rounded-ls-md border border-ls-gray-200 bg-ls-white p-3`, image `object-contain`, libellé + « N articles ». Active : `border-ls-gray-900`. Fallback SVG grille si pas d'image. |
 | **Bloc catégorie (home)** | `home/category-showcase.tsx` | tout le bloc = **un `<Link>`** : accroche (eyebrow) + image `aspect-[3/2] rounded-ls-xl shadow-ls-showcase` (nom en `<h3>` chip blanc bas-droite) + faux-bouton « Voir le catalogue · N articles ». `aria-label` porte le nom. `md:group-hover:scale-[1.03]` sur l'image. |
-| **Carte SAV (home)** | `home/home-sections.tsx` | `rounded-ls-md border border-ls-gray-200 bg-ls-white p-5 min-h-40` : icône encre `size={28}` en haut, `<h3>`, description, lien « En savoir plus → » poussé en bas (`mt-auto`). |
+| **Carte SAV (home)** | `home/home-sections.tsx` | `rounded-ls-md border border-ls-gray-200 bg-ls-white p-5 min-h-40` : icône encre `size={28}` en haut, `<h3>`, description, lien « En savoir plus → » poussé en bas (`mt-auto`). ⚠️ Les trois cartes pointent sur `/#contact` : le libellé promet un approfondissement et livre un bloc de contact. À arbitrer (relibeller, ou créer les pages de destination). |
 | **Étape process (home)** | `home/home-sections.tsx` | `rounded-ls-md bg-ls-white p-5 ring-1 ring-ls-violet-tint` (sur fond violet) : badge numéro rond `bg-ls-violet`, placeholder illustration `border-dashed`, texte. |
-| **Carte actualité (home)** | `home/home-sections.tsx` | **pas de box** — juste image `aspect-[16/10] rounded-ls-lg` + date + `<h3>` + extrait + « Lire → ». |
+| **Carte actualité (home)** | `home/home-sections.tsx` | **pas de box** — juste image `aspect-[16/10] rounded-ls-lg` + date + `<h3>` + extrait + « Lire → ». Le lien « Lire » n'est rendu que si `home_block.href` existe : sans destination réelle il pointait sur `/#actualites`, c'est-à-dire sur la section qui le contient. |
 
 ## Inputs (`src/components/ui/`)
 
@@ -47,6 +47,22 @@ focus-visible:ring-ring/50` (ring = violet). `toggle` / `toggle-group` :
 `<span class="mb-3 block h-[3px] w-8 rounded-full bg-ls-violet" aria-hidden />`
 au-dessus de chaque eyebrow de section (via `SectionHeader`), + footer, + hero
 (en `bg-ls-violet-hero` sur photo).
+
+## Carrousel de sélections (home) — `home/catalog-rail.tsx`
+
+Piste `scroll-snap` + drag pointeur, **aucune librairie**. Cartes
+`aspect-[4/5] rounded-ls-lg shadow-ls-showcase`, largeur `78% / sm:52% / lg:32%`
+(le bloc suivant dépasse → affordance de défilement), titre `<h3>` **en haut** sur
+un dégradé descendant, chip « Voir → » en bas à droite.
+
+Contrôles : **puces partout, flèches en `md:` seulement**. La pastille visible fait
+6px de haut, mais le `<button>` qui la porte fait `h-11 w-6` — sur mobile c'est le
+seul contrôle du carrousel, il tombe donc sous la règle des 44px.
+
+L'état `début / fin` se mesure sur le **défilement réel**
+(`scrollLeft + clientWidth >= scrollWidth`), jamais sur l'index du bloc courant :
+le dernier bloc n'atteint jamais le bord gauche de la piste, donc « suivant » ne se
+désactivait jamais.
 
 ## Modale de recherche — anatomie
 
