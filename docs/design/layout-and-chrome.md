@@ -32,15 +32,28 @@ Layout : **Logo · [liens de nav `lg:`] · barre de recherche · panier ·
   un `<button>` façon input qui ouvre la command-palette). Chip `⌘K` visible en
   `md:` seulement.
 - Panier : `<Link href="/panier">` + `<CartBadge />` (pastille, sous `<Suspense>`).
+  Le lien n'a **pas** d'`aria-label` : son nom accessible se compose d'un texte
+  `sr-only` « Panier » + du `sr-only` « N articles » de la pastille. Un
+  `aria-label` sur le lien écraserait le contenu et le compteur ne serait jamais
+  annoncé.
 - `md:` : lien compte visible.
 - `< lg` : hamburger (`NavDrawer`). `< md` : pas de lien compte (il est dans la
   bottom-nav).
+- **`AdminNavLink`** (`admin-nav-link.tsx`) : raccourci `/admin` entre le compte
+  et le hamburger, rendu client (`useSession`), `md:` seulement, `null` pour un
+  non-admin. Sur mobile l'équivalent est un 5ᵉ onglet de la bottom-nav.
+- La grappe panier / compte / admin / hamburger est un `<div>`, pas un `<nav>` :
+  ce n'est pas une région de navigation, et un 3ᵉ landmark `nav` sans libellé
+  brouillait la lecture au lecteur d'écran.
 
 ## NavDrawer (menu mobile / tablette) — `nav-drawer.tsx`
 
 Hamburger (`< lg`) → `Sheet` (base-ui) côté **gauche**, `w-[84%] sm:max-w-sm`.
 Contenu : header logo + bouton X (fourni par `Sheet`) · liste de liens · bouton
 « Contactez-nous » violet en bas (`mt-auto`).
+
+Le drawer n'a **pas** d'entrée de recherche : la modale s'ouvre depuis la navbar
+(`SearchTrigger`, visible mobile comprise) ou par `⌘K`.
 
 Liens `NAV_LINKS` (source unique, `nav-links.tsx`) — `House / Store / Newspaper /
 Info / Mail` : `Accueil` `/` · `Nos boutiques` `/catalogue` · `Actualités`
@@ -68,6 +81,13 @@ obligatoire avec `cacheComponents`).
 État actif = **icône + label en `text-ls-violet`**, rien d'autre (pas de cercle,
 pas de scale, pas de halo). Icônes `strokeWidth={2.25}`.
 `usePathname()` sous `<Suspense>` (fallback = mêmes items, aucun actif).
+**Le fallback rend de vrais `<Link>`** : sous `cacheComponents` c'est lui qui
+part dans le shell prérendu, donc la barre doit être navigable avant hydratation
+(et visible des crawlers). Un fallback en `<div>` rendrait la nav principale
+mobile inerte tant que le JS n'est pas chargé.
+
+Un 5ᵉ onglet **Admin** apparaît après hydratation pour un compte `admin`
+(`useSession`).
 
 **Hauteur = `--ls-bottom-nav-h`** (`calc(3.5rem + safe-area)`). Tout CTA sticky
 bas de page se cale avec `bottom-[var(--ls-bottom-nav-h)]` (voir la fiche
@@ -91,6 +111,17 @@ Global, 3 bandes séparées par `border-t` / `border-b`, fond `bg-ls-white ls-do
      `text-ls-gray-400`).
 3. **Barre légale** : © + Mentions légales / CGV / Confidentialité. Padding bas
    mobile `pb-[calc(var(--ls-bottom-nav-h)+1.25rem)]`.
+
+Le **numéro de téléphone** de la bande 2 est lu sur le singleton
+`whatsapp_config` (`getWhatsappConfig()`, `'use cache'` → le layout reste
+statique), pas écrit en dur : c'est la même source que le hand-off `wa.me`.
+Non configuré → `[Téléphone — À COMPLÉTER]`. Le `Footer` est donc `async`.
+
+**Le même numéro reste recopié en dur ailleurs** : `legal-page.tsx`,
+`mentions-legales`, `cgv`, `confidentialite`. Ce n'est pas un faux numéro (il
+correspond bien au `whatsapp_config` actuel) mais quatre copies qui dériveront
+dès que le marchand le changera depuis `/admin/whatsapp` — à reprendre lors de
+la passe contenu.
 
 ## Modale de recherche — `src/components/storefront/search/search-modal.tsx`
 

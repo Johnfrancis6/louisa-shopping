@@ -28,13 +28,19 @@ export function Navbar() {
           <SearchTrigger />
         </div>
 
-        <nav className="flex shrink-0 items-center gap-1">
+        {/* Grappe utilitaire, pas une région de navigation : un <div>. Les
+            landmarks `nav` du storefront sont NavbarLinks, le drawer, la
+            bottom-nav et le pied de page. */}
+        <div className="flex shrink-0 items-center gap-1">
+          {/* Pas d'`aria-label` ici : il écraserait le contenu et le compteur du
+              panier ne serait jamais annoncé. Le nom se compose du texte
+              `sr-only` + de la pastille. */}
           <Link
             href="/panier"
             className="relative flex h-11 w-11 items-center justify-center rounded-ls-sm text-ls-gray-900 hover:bg-ls-gray-100"
-            aria-label="Panier"
           >
-            <ShoppingBag size={22} />
+            <ShoppingBag size={22} aria-hidden="true" />
+            <span className="sr-only">Panier</span>
             <Suspense fallback={<CartBadgeSkeleton />}>
               <CartBadge />
             </Suspense>
@@ -51,7 +57,7 @@ export function Navbar() {
           <AdminNavLink />
 
           <NavDrawer />
-        </nav>
+        </div>
       </div>
     </header>
   )

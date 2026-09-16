@@ -6,10 +6,13 @@ import { cn } from '@/lib/utils'
 /**
  * Logo Louisa Shopping.
  *
- * Servi par Cloudinary comme tous les médias : le loader next/image
- * (`next.config.ts`) injecte `f_auto,q_auto,w_…` → ~4 KB WebP au lieu du PNG
- * source de 440 KB. Master : `louisa-shopping/brand/logo` (source dans l'historique
- * git : `git show <commit>:src/components/storefront/layout/logo.png`).
+ * ⚠️ DETTE — encore servi par **Cloudinary**, alors que tous les autres médias
+ * sont passés sur ImageKit. Le loader (`src/lib/images/loader.ts`) garde la
+ * branche héritée `/upload/` et injecte `f_auto,q_auto,w_…` → ~4 KB WebP au
+ * lieu du PNG source de 440 KB, donc rien n'est cassé ; mais c'est le seul
+ * asset qui retient la dépendance Cloudinary, et il est chargé sur **toutes**
+ * les pages. À ré-héberger sur ImageKit (le master est dans l'historique git :
+ * `git show <commit>:src/components/storefront/layout/logo.png`).
  *
  * ⚠️ Taille = la hauteur `h-[…]`. Tailwind n'a pas de `h-13` / `h-15` : utiliser
  * un pas valide (`h-10`, `h-11`, `h-12`, `h-14`) ou `h-[44px]`. La navbar fait

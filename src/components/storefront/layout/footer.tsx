@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Handshake, ClipboardCheck, BadgeCheck, MapPin, Phone, Mail } from 'lucide-react'
 import { Logo } from './logo'
+import { getWhatsappConfig } from '@/lib/data/whatsapp-config'
 
 /*
  * Footer storefront — structuré en 3 bandes :
@@ -41,16 +42,34 @@ const NAV = [
   { href: '/panier', label: 'Mon panier' },
 ]
 
-const CONTACT = [
-  { Icon: MapPin, text: '[Adresse — À COMPLÉTER]' },
-  { Icon: Phone, text: '+226 60 55 44 00 (WhatsApp)' },
-  { Icon: Mail, text: '[E-mail — À COMPLÉTER]' },
-]
+/**
+ * `+226 XXXXXXXX` (E.164) → `+226 XX XX XX XX`. Purement cosmétique : le
+ * numéro de vérité reste celui du singleton `whatsapp_config`.
+ */
+function formatPhone(e164: string): string {
+  const m = /^\+226(\d{8})$/.exec(e164.replace(/\s+/g, ''))
+  if (!m) return e164
+  return `+226 ${m[1].replace(/(\d{2})(?=\d)/g, '$1 ')}`
+}
 
 const HEADING =
   'text-[11px] font-semibold uppercase tracking-[0.14em] text-ls-gray-500'
 
-export function Footer() {
+export async function Footer() {
+  // Le numéro affiché vient du singleton `whatsapp_config` — même source que le
+  // hand-off wa.me. Il était recopié en dur ici : la copie ne dérivait pas
+  // encore, mais elle serait devenue fausse au premier changement depuis
+  // /admin/whatsapp. Lecture `'use cache'`, donc le layout reste statique.
+  const wa = await getWhatsappConfig()
+  const contact = [
+    { Icon: MapPin, text: '[Adresse — À COMPLÉTER]' },
+    {
+      Icon: Phone,
+      text: wa ? `${formatPhone(wa.numero)} (WhatsApp)` : '[Téléphone — À COMPLÉTER]',
+    },
+    { Icon: Mail, text: '[E-mail — À COMPLÉTER]' },
+  ]
+
   return (
     <footer className="ls-dots border-t border-ls-gray-200 bg-ls-white">
       {/* 1 · Réassurance produit */}
@@ -92,7 +111,7 @@ export function Footer() {
           <div>
             <Logo className="h-14 w-auto max-w-[180px]" />
             <p className="mt-3 max-w-xs text-ls-body text-ls-gray-500">
-              Boutique en ligne . Vous commandez, on vous
+              Boutique en ligne à [Ville — À COMPLÉTER]. Vous commandez, on vous
               livre dans votre zone, et tout se confirme sur WhatsApp.
             </p>
             <div className="mt-4 flex gap-2">
@@ -127,7 +146,7 @@ export function Footer() {
           <section id="contact" className="scroll-mt-20">
             <p className={HEADING}>Contact</p>
             <ul className="mt-3 flex flex-col gap-2.5 text-ls-body text-ls-gray-600">
-              {CONTACT.map(({ Icon, text }) => (
+              {contact.map(({ Icon, text }) => (
                 <li key={text} className="flex items-start gap-2.5">
                   <Icon
                     size={18}
@@ -143,22 +162,22 @@ export function Footer() {
       </div>
 
       {/* 3 · Barre légale */}
-<div className="border-t border-ls-gray-200 px-4 pb-[calc(var(--ls-bottom-nav-h)+1.25rem)] pt-5 md:px-12 md:pb-5">
-  <div className="mx-auto flex max-w-6xl flex-col gap-2 text-ls-label text-ls-gray-500 sm:flex-row sm:items-center sm:justify-between">
-    <p>© 2026 Louisa Shopping</p>
-    <div className="flex flex-wrap gap-x-4 gap-y-1">
-      <Link href="/mentions-legales" className="hover:text-ls-violet-dark hover:underline">
-        Mentions légales
-      </Link>
-      <Link href="/cgv" className="hover:text-ls-violet-dark hover:underline">
-        CGV
-      </Link>
-      <Link href="/confidentialite" className="hover:text-ls-violet-dark hover:underline">
-        Confidentialité
-      </Link>
-    </div>
-  </div>
-</div>
+      <div className="border-t border-ls-gray-200 px-4 pb-[calc(var(--ls-bottom-nav-h)+1.25rem)] pt-5 md:px-12 md:pb-5">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 text-ls-label text-ls-gray-500 sm:flex-row sm:items-center sm:justify-between">
+          <p>© 2026 Louisa Shopping</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link href="/mentions-legales" className="hover:text-ls-violet-dark hover:underline">
+              Mentions légales
+            </Link>
+            <Link href="/cgv" className="hover:text-ls-violet-dark hover:underline">
+              CGV
+            </Link>
+            <Link href="/confidentialite" className="hover:text-ls-violet-dark hover:underline">
+              Confidentialité
+            </Link>
+          </div>
+        </div>
+      </div>
     </footer>
   )
 }

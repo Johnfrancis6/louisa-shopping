@@ -65,14 +65,16 @@ function SheetContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-3 right-3"
+                /* size-11 : le défaut shadcn `icon-sm` fait 28px — sous le
+                   plancher tactile de 44px, et c'est la sortie principale du
+                   drawer mobile. */
+                className="absolute top-2 right-2 size-11"
                 size="icon-sm"
               />
             }
           >
-            <XIcon
-            />
-            <span className="sr-only">Close</span>
+            <XIcon />
+            <span className="sr-only">Fermer</span>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Popup>

@@ -11,13 +11,18 @@ export async function CartBadge() {
 
   if (count === 0) return null
 
+  // `aria-label` sur un <span> sans rôle n'est pas exposé de façon fiable : on
+  // passe par un texte `sr-only` réel, qui se compose dans le nom accessible du
+  // <Link> parent (« Panier, 3 articles »).
   return (
     <span
       key={count}
       className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ls-danger px-1 text-[10px] font-medium leading-none text-white animate-in zoom-in-50 duration-[var(--duration-ls-bounce)] ease-[var(--ease-ls-out)]"
-      aria-label={`${count} article${count > 1 ? 's' : ''} dans le panier`}
     >
-      {count > 99 ? '99+' : count}
+      <span aria-hidden="true">{count > 99 ? '99+' : count}</span>
+      <span className="sr-only">
+        {count} article{count > 1 ? 's' : ''}
+      </span>
     </span>
   )
 }

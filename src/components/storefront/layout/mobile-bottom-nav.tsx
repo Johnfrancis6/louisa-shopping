@@ -91,18 +91,20 @@ function NavItems({
   )
 }
 
-/** Fallback statique — aucun item actif, structure identique pour éviter le layout shift */
+/**
+ * Fallback statique — c'est CE rendu qui part dans le shell prérendu
+ * (`usePathname()` suspend sous `cacheComponents`). Il doit donc rester
+ * navigable : de vrais <Link>, cliquables avant hydratation et visibles des
+ * crawlers. Seul l'état actif manque. Markup identique → aucun layout shift.
+ */
 function NavItemsFallback({ items }: { items: Item[] }) {
   return (
     <ul className="flex h-14 items-stretch">
       {items.map(({ href, label, Icon }) => (
         <li key={href} className="flex flex-1">
-          <div className={CELL}>
-            <span className="flex h-8 w-8 items-center justify-center">
-              <Icon size={22} strokeWidth={2.25} className="text-ls-gray-500" />
-            </span>
-            <span className="text-[11px] leading-none text-ls-gray-500">{label}</span>
-          </div>
+          <Link href={href} className={CELL}>
+            <ItemInner Icon={Icon} label={label} isActive={false} />
+          </Link>
         </li>
       ))}
     </ul>

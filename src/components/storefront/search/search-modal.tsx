@@ -93,11 +93,11 @@ export function SearchTrigger() {
     <button
       type="button"
       onClick={open}
-      className="flex w-full items-center gap-2 rounded-ls-sm border border-ls-gray-200 bg-ls-gray-50 py-2 pl-3 pr-2 text-left text-ls-body text-ls-gray-500 transition-colors hover:border-ls-gray-300"
+      className="flex h-11 w-full items-center gap-2 rounded-ls-sm border border-ls-gray-200 bg-ls-gray-50 pl-3 pr-2 text-left text-ls-body text-ls-gray-500 transition-colors duration-[var(--duration-ls-fast)] hover:border-ls-gray-300"
     >
       <Search size={18} className="shrink-0" />
       <span className="flex-1 truncate">Rechercher un produit…</span>
-      <kbd className="hidden shrink-0 rounded border border-ls-gray-200 bg-ls-white px-1.5 py-0.5 text-[11px] font-medium text-ls-gray-500 md:inline">
+      <kbd className="hidden shrink-0 rounded-ls-xs border border-ls-gray-200 bg-ls-white px-1.5 py-0.5 text-[11px] font-medium text-ls-gray-500 md:inline">
         ⌘K
       </kbd>
     </button>
