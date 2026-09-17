@@ -2,6 +2,7 @@ import 'server-only'
 import { cacheLife, cacheTag } from 'next/cache'
 import { and, desc, eq } from 'drizzle-orm'
 import { dbAnon } from '@/lib/db/client'
+import { withFallback } from './resilient'
 import { review } from '@/lib/db/schema'
 import type { Review } from '@/types/catalog'
 
@@ -11,36 +12,40 @@ import type { Review } from '@/types/catalog'
  * figé à l'écriture (dbAnon n'a pas accès à `customer`).
  */
 export async function getApprovedReviews(productId: string): Promise<Review[]> {
+  return withFallback(
+    'getApprovedReviews',
+    () => getApprovedReviewsCached(productId),
+    [],
+  )
+}
+
+/** Lecture ACCESSOIRE : une panne des avis ne doit pas emporter la fiche produit. */
+async function getApprovedReviewsCached(productId: string): Promise<Review[]> {
   'use cache'
   cacheLife('minutes')
   cacheTag(`reviews:${productId}`)
 
-  try {
-    const rows = await dbAnon
-      .select({
-        id: review.id,
-        productId: review.productId,
-        author: review.authorName,
-        rating: review.rating,
-        comment: review.body,
-        status: review.status,
-        createdAt: review.createdAt,
-      })
-      .from(review)
-      .where(and(eq(review.productId, productId), eq(review.status, 'approved')))
-      .orderBy(desc(review.createdAt))
+  const rows = await dbAnon
+    .select({
+      id: review.id,
+      productId: review.productId,
+      author: review.authorName,
+      rating: review.rating,
+      comment: review.body,
+      status: review.status,
+      createdAt: review.createdAt,
+    })
+    .from(review)
+    .where(and(eq(review.productId, productId), eq(review.status, 'approved')))
+    .orderBy(desc(review.createdAt))
 
-    return rows.map((r) => ({
-      id: r.id,
-      productId: r.productId,
-      author: r.author,
-      rating: Math.min(5, Math.max(1, r.rating)) as Review['rating'],
-      comment: r.comment ?? '',
-      status: 'approved',
-      createdAt: r.createdAt.toISOString(),
-    }))
-  } catch (err) {
-    console.error('[data/reviews] getApprovedReviews', err)
-    return []
-  }
+  return rows.map((r) => ({
+    id: r.id,
+    productId: r.productId,
+    author: r.author,
+    rating: Math.min(5, Math.max(1, r.rating)) as Review['rating'],
+    comment: r.comment ?? '',
+    status: 'approved',
+    createdAt: r.createdAt.toISOString(),
+  }))
 }

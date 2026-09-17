@@ -77,6 +77,9 @@ export function ProductGrid({
 
   if (items.length === 0) {
     const hasFilters = countActiveFilters(filters) > 0
+    // Un vide est désormais un VRAI vide : depuis que getProducts lève au lieu
+    // de rattraper, une panne de lecture part dans (storefront)/error.tsx et
+    // n'atterrit plus ici déguisée en « boutique sans produit ».
     return (
       <div className="px-4 md:px-12">
         <div className="flex flex-col items-center gap-3 rounded-ls-md border border-ls-gray-200 bg-ls-white px-6 py-12 text-center">
@@ -84,7 +87,9 @@ export function ProductGrid({
           <p className="text-ls-body text-ls-gray-600">
             {hasFilters
               ? 'Aucun produit ne correspond à ces filtres.'
-              : 'Cette catégorie ne contient encore aucun produit.'}
+              : filters.categorie
+                ? 'Cette catégorie ne contient encore aucun produit.'
+                : 'Le catalogue est encore vide.'}
           </p>
           {hasFilters && (
             <Link

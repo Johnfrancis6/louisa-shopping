@@ -2,6 +2,7 @@ import 'server-only'
 import { cacheLife, cacheTag } from 'next/cache'
 import { and, asc, eq } from 'drizzle-orm'
 import { dbAnon } from '@/lib/db/client'
+import { withFallback } from './resilient'
 import { homeBlock } from '@/lib/db/schema'
 
 /**
@@ -28,30 +29,32 @@ export type HomeBlockView = {
 }
 
 export async function getHomeBlocks(slot: HomeSlot): Promise<HomeBlockView[]> {
+  // Table absente (migration pas encore appliquée) ou base injoignable : la
+  // home doit rendre quand même, sur son contenu de repli codé en dur
+  // (home-sections.tsx). C'est le seul helper où le repli vide est le
+  // comportement VOULU — mais il reste produit hors de la portée cachée, sinon
+  // la home resterait figée sur son contenu de secours pendant un jour entier.
+  return withFallback(`getHomeBlocks(${slot})`, () => getHomeBlocksCached(slot), [])
+}
+
+async function getHomeBlocksCached(slot: HomeSlot): Promise<HomeBlockView[]> {
   'use cache'
   cacheLife('hours')
   cacheTag('home', `home:${slot}`)
 
-  try {
-    return await dbAnon
-      .select({
-        id: homeBlock.id,
-        eyebrow: homeBlock.eyebrow,
-        title: homeBlock.title,
-        body: homeBlock.body,
-        ctaLabel: homeBlock.ctaLabel,
-        href: homeBlock.href,
-        imageUrl: homeBlock.imageUrl,
-      })
-      .from(homeBlock)
-      .where(and(eq(homeBlock.slot, slot), eq(homeBlock.visible, true)))
-      .orderBy(asc(homeBlock.position), asc(homeBlock.createdAt))
-  } catch (err) {
-    // Table absente (migration pas encore appliquée) ou base injoignable : la
-    // home doit rendre quand même, sur son contenu de repli.
-    console.error(`[data/home] getHomeBlocks(${slot})`, err)
-    return []
-  }
+  return dbAnon
+    .select({
+      id: homeBlock.id,
+      eyebrow: homeBlock.eyebrow,
+      title: homeBlock.title,
+      body: homeBlock.body,
+      ctaLabel: homeBlock.ctaLabel,
+      href: homeBlock.href,
+      imageUrl: homeBlock.imageUrl,
+    })
+    .from(homeBlock)
+    .where(and(eq(homeBlock.slot, slot), eq(homeBlock.visible, true)))
+    .orderBy(asc(homeBlock.position), asc(homeBlock.createdAt))
 }
 
 /** Bannière de la home. Le premier bloc `hero` visible, par position. */

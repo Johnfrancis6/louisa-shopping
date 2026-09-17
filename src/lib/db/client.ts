@@ -51,22 +51,46 @@ let _adminClient: postgres.Sql | null = null;
 let _dbAnon: ReturnType<typeof drizzle<typeof schema>> | null = null;
 let _dbAdmin: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
+/**
+ * Réglages communs aux deux pools. Contexte : Netlify/OpenNext = AWS Lambda.
+ *
+ * `max` — une instance Lambda ne traite qu'UNE requête à la fois : dix
+ * connexions par client n'ajoutent aucun parallélisme utile, elles ne font que
+ * réserver des slots dans le pooler. Trois suffisent aux `Promise.all` de la
+ * couche data (cf. hydrate() dans lib/data/products.ts) sans les sérialiser.
+ *
+ * `idle_timeout` — LE réglage qui manquait. postgres-js garde par défaut ses
+ * connexions ouvertes indéfiniment ; une instance Lambda gelée entre deux
+ * requêtes continuait donc de tenir ses slots. Le 2026-09-17, avec max: 10 sur
+ * deux clients (dbAnon + dbAdmin) = 20 connexions par instance, ça a saturé le
+ * pooler : « (EMAXCONNSESSION) max clients reached in session mode - max
+ * clients are limited to pool_size: 15 ». Toutes les lectures publiques ont
+ * échoué pendant une minute, et le catalogue est resté vide une heure (voir la
+ * note sur la mise en cache des échecs dans lib/data/resilient.ts).
+ *
+ * `connect_timeout` — échouer en 10 s plutôt que pendre 30 s (le défaut) sur un
+ * pooler saturé : la requête a une chance de finir dans le budget de la Lambda.
+ *
+ * ⚠️ Ces réglages supposent les URL sur le pooler en mode TRANSACTION
+ * (port 6543), pas en mode session (5432) — voir .env.example.
+ */
+const POOL_OPTIONS = {
+  prepare: false, // requis Supavisor / PgBouncer transaction mode
+  max: 3,
+  idle_timeout: 20,
+  connect_timeout: 10,
+} as const;
+
 function getAnonClient(): postgres.Sql {
   if (!_anonClient) {
-    _anonClient = postgres(requireEnv("DATABASE_URL_ANON"), {
-      prepare: false, // requis Supavisor / PgBouncer transaction mode
-      max: 10,
-    });
+    _anonClient = postgres(requireEnv("DATABASE_URL_ANON"), POOL_OPTIONS);
   }
   return _anonClient;
 }
 
 function getAdminClient(): postgres.Sql {
   if (!_adminClient) {
-    _adminClient = postgres(requireEnv("DATABASE_URL_ADMIN"), {
-      prepare: false,
-      max: 10,
-    });
+    _adminClient = postgres(requireEnv("DATABASE_URL_ADMIN"), POOL_OPTIONS);
   }
   return _adminClient;
 }

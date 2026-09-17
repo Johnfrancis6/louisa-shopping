@@ -99,6 +99,20 @@ live tree is `(storefront)` + `admin` + `api`; Better Auth is at
   (dedicated LOGIN roles) — Supabase's `anon`/`service_role` are NOLOGIN. Migrations,
   seed, `promote-admin` use `DATABASE_URL_MIGRATE` (`postgres`). Table GRANTs for the
   app roles live in `supabase/policies.sql`. See `.env.example`.
+  **The pooler port matters**: the two runtime URLs must be on **6543**
+  (transaction mode). On 5432 (session mode) the pool is capped at
+  `pool_size: 15` and Lambda exhausts it — that caused the 2026-09-17 empty-catalogue
+  incident. `DATABASE_URL_MIGRATE` stays on 5432. Pool options live in
+  `src/lib/db/client.ts` (`max: 3`, `idle_timeout: 20`).
+- **Never `try/catch` inside a `'use cache'` scope.** The return value of a cached
+  function *is* the cache entry: a degraded fallback returned from an inner `catch`
+  gets written to the durable cache and re-served to everyone until it expires (1 h
+  for `minutes`, 1 **day** for `hours`). `src/lib/data/resilient.ts` holds the rule and
+  the two sanctioned shapes — `withFallback()` for incidental reads (counters, facets,
+  cart badge, editorial blocks), and *no fallback at all* for critical reads
+  (`getProducts`, `getProductBySlug`, `getCategories`), which throw into
+  `src/app/(storefront)/error.tsx`. Every catch reports to Sentry via
+  `reportDataError()`.
 - **Admin is partial**: product detail (`/admin/products/[id]`) now has the field
   editor (name / description / price / category, via `updateProduct`) plus the
   media manager — still no variant edit/delete, tutorial-content CRUD, or

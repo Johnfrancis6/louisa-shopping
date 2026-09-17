@@ -2,6 +2,7 @@ import 'server-only'
 import { cacheLife, cacheTag } from 'next/cache'
 import { and, asc, desc, eq, ilike, inArray, or } from 'drizzle-orm'
 import { dbAnon } from '@/lib/db/client'
+import { withFallback } from './resilient'
 import {
   products,
   variants,
@@ -143,7 +144,16 @@ async function hydrate(heads: ProductHead[]): Promise<Product[]> {
 // Recherche
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Recherche storefront. Lecture ACCESSOIRE : en cas de panne on rend « aucun
+ * résultat » plutôt que de casser la modale de recherche. Le repli est produit
+ * hors de la portée cachée, donc jamais mémorisé (cf. ./resilient.ts).
+ */
 export async function searchProducts(query: string): Promise<Product[]> {
+  return withFallback('searchProducts', () => searchProductsCached(query), [])
+}
+
+async function searchProductsCached(query: string): Promise<Product[]> {
   'use cache'
   cacheLife('minutes')
   cacheTag('products', 'stock')
@@ -154,37 +164,32 @@ export async function searchProducts(query: string): Promise<Product[]> {
   // pour qu'une saisie utilisateur reste une recherche littérale.
   const pattern = `%${q.replace(/[\\%_]/g, '\\$&')}%`
 
-  try {
-    // Match sur le nom du produit OU le SKU d'une de ses variantes.
-    const productIdsBySku = dbAnon
-      .select({ id: variants.productId })
-      .from(variants)
-      .where(ilike(variants.sku, pattern))
+  // Match sur le nom du produit OU le SKU d'une de ses variantes.
+  const productIdsBySku = dbAnon
+    .select({ id: variants.productId })
+    .from(variants)
+    .where(ilike(variants.sku, pattern))
 
-    const heads = await dbAnon
-      .select({
-        id: products.id,
-        slug: products.slug,
-        name: products.name,
-        categoryId: products.categoryId,
-        basePrice: products.basePrice,
-        hasTutorial: products.hasTutorial,
-      })
-      .from(products)
-      .where(
-        and(
-          eq(products.isActive, true),
-          or(ilike(products.name, pattern), inArray(products.id, productIdsBySku)),
-        ),
-      )
-      .orderBy(desc(products.createdAt))
-      .limit(40)
+  const heads = await dbAnon
+    .select({
+      id: products.id,
+      slug: products.slug,
+      name: products.name,
+      categoryId: products.categoryId,
+      basePrice: products.basePrice,
+      hasTutorial: products.hasTutorial,
+    })
+    .from(products)
+    .where(
+      and(
+        eq(products.isActive, true),
+        or(ilike(products.name, pattern), inArray(products.id, productIdsBySku)),
+      ),
+    )
+    .orderBy(desc(products.createdAt))
+    .limit(40)
 
-    return hydrate(heads)
-  } catch (err) {
-    console.error('[data/products] searchProducts', err)
-    return []
-  }
+  return hydrate(heads)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,41 +211,41 @@ export async function getProducts(
   cacheLife('minutes')
   cacheTag('products', 'stock')
 
-  try {
-    const heads = await dbAnon
-      .select({
-        id: products.id,
-        slug: products.slug,
-        name: products.name,
-        categoryId: products.categoryId,
-        basePrice: products.basePrice,
-        hasTutorial: products.hasTutorial,
-      })
-      .from(products)
-      .innerJoin(category, eq(products.categoryId, category.id))
-      .where(
-        and(
-          eq(products.isActive, true),
-          eq(category.visible, true),
-          filters.categorie ? eq(category.slug, filters.categorie) : undefined,
-        ),
-      )
-      .orderBy(desc(products.createdAt))
+  // PAS de try/catch ici. Lecture critique : un catalogue vide ment au
+  // visiteur (« cette boutique n'a rien à vendre »), et ce mensonge serait
+  // mis en cache pour une heure — c'est exactement l'incident du 2026-09-17.
+  // On laisse remonter : (storefront)/error.tsx affiche « réessayer ».
+  // Voir ./resilient.ts.
+  const heads = await dbAnon
+    .select({
+      id: products.id,
+      slug: products.slug,
+      name: products.name,
+      categoryId: products.categoryId,
+      basePrice: products.basePrice,
+      hasTutorial: products.hasTutorial,
+    })
+    .from(products)
+    .innerJoin(category, eq(products.categoryId, category.id))
+    .where(
+      and(
+        eq(products.isActive, true),
+        eq(category.visible, true),
+        filters.categorie ? eq(category.slug, filters.categorie) : undefined,
+      ),
+    )
+    .orderBy(desc(products.createdAt))
 
-    const filtered = (await hydrate(heads)).filter((p) => matchesFilters(p, filters))
-    const all = sortProducts(filtered, filters.tri)
+  const filtered = (await hydrate(heads)).filter((p) => matchesFilters(p, filters))
+  const all = sortProducts(filtered, filters.tri)
 
-    const start = cursor ? Math.max(0, Number(cursor) || 0) : 0
-    const items = all.slice(start, start + PAGE_SIZE)
-    const nextIndex = start + items.length
-    return {
-      items,
-      nextCursor: nextIndex < all.length ? String(nextIndex) : null,
-      total: all.length,
-    }
-  } catch (err) {
-    console.error('[data/products] getProducts', err)
-    return { items: [], nextCursor: null, total: 0 }
+  const start = cursor ? Math.max(0, Number(cursor) || 0) : 0
+  const items = all.slice(start, start + PAGE_SIZE)
+  const nextIndex = start + items.length
+  return {
+    items,
+    nextCursor: nextIndex < all.length ? String(nextIndex) : null,
+    total: all.length,
   }
 }
 
@@ -253,68 +258,66 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   cacheLife('minutes')
   cacheTag('products', 'stock', `product:${slug}`)
 
-  try {
-    const [product] = await dbAnon
+  // PAS de try/catch : l'appelant fait `notFound()` sur null. Rattraper ici
+  // transformait une panne DB en 404 — un 404 mis en cache, sur un produit qui
+  // existe. `null` doit vouloir dire « pas de ligne », rien d'autre.
+  const [product] = await dbAnon
+    .select({
+      id: products.id,
+      slug: products.slug,
+      name: products.name,
+      categoryId: products.categoryId,
+      description: products.description,
+      basePrice: products.basePrice,
+      hasTutorial: products.hasTutorial,
+      deliveryZones: products.deliveryZones,
+    })
+    .from(products)
+    .where(and(eq(products.slug, slug), eq(products.isActive, true)))
+    .limit(1)
+
+  if (!product) return null
+
+  const [variantRows, imageRows, tutoRows] = await Promise.all([
+    dbAnon
       .select({
-        id: products.id,
-        slug: products.slug,
-        name: products.name,
-        categoryId: products.categoryId,
-        description: products.description,
-        basePrice: products.basePrice,
-        hasTutorial: products.hasTutorial,
-        deliveryZones: products.deliveryZones,
+        id: variants.id,
+        productId: variants.productId,
+        sku: variants.sku,
+        size: variants.size,
+        color: variants.color,
+        stockQty: variants.stockQty,
+        priceOverride: variants.priceOverride,
       })
-      .from(products)
-      .where(and(eq(products.slug, slug), eq(products.isActive, true)))
-      .limit(1)
+      .from(variants)
+      .where(eq(variants.productId, product.id)),
+    dbAnon
+      .select({ url: media.url })
+      .from(media)
+      .where(and(eq(media.productId, product.id), eq(media.type, 'image')))
+      .orderBy(asc(media.position)),
+    dbAnon
+      .select({ url: tutorialContent.url })
+      .from(tutorialContent)
+      .where(eq(tutorialContent.productId, product.id))
+      .limit(1),
+  ])
 
-    if (!product) return null
+  const images = imageRows.map((i) => i.url)
+  const firstImage = images[0] ?? null
 
-    const [variantRows, imageRows, tutoRows] = await Promise.all([
-      dbAnon
-        .select({
-          id: variants.id,
-          productId: variants.productId,
-          sku: variants.sku,
-          size: variants.size,
-          color: variants.color,
-          stockQty: variants.stockQty,
-          priceOverride: variants.priceOverride,
-        })
-        .from(variants)
-        .where(eq(variants.productId, product.id)),
-      dbAnon
-        .select({ url: media.url })
-        .from(media)
-        .where(and(eq(media.productId, product.id), eq(media.type, 'image')))
-        .orderBy(asc(media.position)),
-      dbAnon
-        .select({ url: tutorialContent.url })
-        .from(tutorialContent)
-        .where(eq(tutorialContent.productId, product.id))
-        .limit(1),
-    ])
-
-    const images = imageRows.map((i) => i.url)
-    const firstImage = images[0] ?? null
-
-    return {
-      id: product.id,
-      slug: product.slug,
-      name: product.name,
-      categoryId: product.categoryId,
-      isActive: true,
-      hasTutorial: product.hasTutorial,
-      description: product.description ?? '',
-      images,
-      deliveryZones: (product.deliveryZones as DeliveryZone[]) ?? [],
-      tutorialUrl: product.hasTutorial ? tutoRows[0]?.url ?? null : null,
-      variants: variantRows.map((v) => toVariant(v, product.basePrice, firstImage)),
-    }
-  } catch (err) {
-    console.error('[data/products] getProductBySlug', err)
-    return null
+  return {
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    categoryId: product.categoryId,
+    isActive: true,
+    hasTutorial: product.hasTutorial,
+    description: product.description ?? '',
+    images,
+    deliveryZones: (product.deliveryZones as DeliveryZone[]) ?? [],
+    tutorialUrl: product.hasTutorial ? tutoRows[0]?.url ?? null : null,
+    variants: variantRows.map((v) => toVariant(v, product.basePrice, firstImage)),
   }
 }
 
@@ -331,45 +334,49 @@ export type CatalogFacets = {
 
 const DEFAULT_FACETS: CatalogFacets = { colors: [], sizes: [], priceMin: 0, priceMax: 0 }
 
+/**
+ * Lecture ACCESSOIRE : les facettes ne font que peupler le panneau de filtres.
+ * En cas de panne on rend un panneau sans options — dégradé, mais la grille
+ * produit (elle, critique) décide seule du sort de la page. Repli hors cache.
+ */
 export async function getCatalogFacets(): Promise<CatalogFacets> {
+  return withFallback('getCatalogFacets', getCatalogFacetsCached, DEFAULT_FACETS)
+}
+
+async function getCatalogFacetsCached(): Promise<CatalogFacets> {
   'use cache'
   cacheLife('hours')
   cacheTag('products')
 
-  try {
-    const rows = await dbAnon
-      .select({
-        color: variants.color,
-        size: variants.size,
-        priceOverride: variants.priceOverride,
-        basePrice: products.basePrice,
-      })
-      .from(variants)
-      .innerJoin(products, eq(variants.productId, products.id))
-      .where(eq(products.isActive, true))
+  const rows = await dbAnon
+    .select({
+      color: variants.color,
+      size: variants.size,
+      priceOverride: variants.priceOverride,
+      basePrice: products.basePrice,
+    })
+    .from(variants)
+    .innerJoin(products, eq(variants.productId, products.id))
+    .where(eq(products.isActive, true))
 
-    if (rows.length === 0) return DEFAULT_FACETS
+  if (rows.length === 0) return DEFAULT_FACETS
 
-    const colors = new Set<string>()
-    const sizes = new Set<string>()
-    let min = Infinity
-    let max = 0
-    for (const r of rows) {
-      if (r.color) colors.add(r.color)
-      if (r.size) sizes.add(r.size)
-      const price = r.priceOverride ?? r.basePrice
-      if (price < min) min = price
-      if (price > max) max = price
-    }
+  const colors = new Set<string>()
+  const sizes = new Set<string>()
+  let min = Infinity
+  let max = 0
+  for (const r of rows) {
+    if (r.color) colors.add(r.color)
+    if (r.size) sizes.add(r.size)
+    const price = r.priceOverride ?? r.basePrice
+    if (price < min) min = price
+    if (price > max) max = price
+  }
 
-    return {
-      colors: [...colors].sort((a, b) => a.localeCompare(b, 'fr')),
-      sizes: [...sizes].sort((a, b) => a.localeCompare(b, 'fr')),
-      priceMin: Number.isFinite(min) ? min : 0,
-      priceMax: max,
-    }
-  } catch (err) {
-    console.error('[data/products] getCatalogFacets', err)
-    return DEFAULT_FACETS
+  return {
+    colors: [...colors].sort((a, b) => a.localeCompare(b, 'fr')),
+    sizes: [...sizes].sort((a, b) => a.localeCompare(b, 'fr')),
+    priceMin: Number.isFinite(min) ? min : 0,
+    priceMax: max,
   }
 }

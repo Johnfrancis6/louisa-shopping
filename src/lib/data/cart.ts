@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from 'next/cache'
 import { cookies } from 'next/headers'
 import { Redis } from '@upstash/redis'
 import type { Cart } from '@/lib/actions/cart'
+import { withFallback } from './resilient'
 
 /**
  * Lecture cachée du compteur panier, pour le badge (navbar + bottom-nav).
@@ -17,22 +18,25 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 })
 
-async function cartItemCount(sessionId: string): Promise<number> {
+async function cartItemCountCached(sessionId: string): Promise<number> {
   'use cache'
   cacheLife('minutes')
   cacheTag('cart')
 
-  try {
-    const cart = await redis.get<Cart>(`cart:${sessionId}`)
-    return (cart?.items ?? []).reduce((n, i) => n + i.qty, 0)
-  } catch (err) {
-    console.error('[data/cart] cartItemCount', err)
-    return 0
-  }
+  const cart = await redis.get<Cart>(`cart:${sessionId}`)
+  return (cart?.items ?? []).reduce((n, i) => n + i.qty, 0)
 }
 
-/** Nombre d'articles (somme des quantités) du panier de la session courante. */
+/**
+ * Nombre d'articles (somme des quantités) du panier de la session courante.
+ *
+ * Lecture ACCESSOIRE : une panne Redis masque le badge, elle ne coûte pas la
+ * page. Le repli est produit hors de la portée cachée — sinon un incident
+ * Upstash d'une seconde affichait un panier vide pendant une heure, à des gens
+ * qui ont bel et bien des articles dedans.
+ */
 export async function getCartBadgeCount(): Promise<number> {
   const sessionId = (await cookies()).get('cart-session')?.value
-  return sessionId ? cartItemCount(sessionId) : 0
+  if (!sessionId) return 0
+  return withFallback('cartItemCount', () => cartItemCountCached(sessionId), 0)
 }
