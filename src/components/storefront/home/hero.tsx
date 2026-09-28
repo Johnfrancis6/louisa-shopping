@@ -9,17 +9,19 @@ import { getHeroBlock } from '@/lib/data/home'
  * (min-h = 100svh − 3.5rem). Statique par contrainte (pas d'entrée animée).
  *
  * Contenu piloté par la base : `home_block` slot `hero`, géré depuis
- * /admin/home. Tant qu'aucune ligne n'existe, on rend le BROUILLON ci-dessous
- * (image de démo Cloudinary) — la home reste publiable sans attendre les
- * visuels. Grand titre = violet dédié (#D96AE6) + ombre ; sous-titre blanc.
+ * /admin/home. Tant qu'aucune ligne n'existe, on rend le repli ci-dessous
+ * — la home reste publiable sans attendre les visuels. Grand titre = violet
+ * dédié (#D96AE6) + ombre ; sous-titre blanc.
  */
 
 /**
- * Repli tant qu'aucun bloc `hero` n'existe. PAS d'image : elle arrive depuis
- * /admin/home. Sans elle, le fond encre + le dégradé suffisent à garder le
- * titre lisible — mieux qu'un visuel de démo qui n'est pas le vôtre.
+ * Repli tant qu'aucun bloc `hero` n'existe (ou qu'il n'a pas d'image).
+ * L'image est un asset local (`public/`) : le loader la sert telle quelle, sans
+ * transformation ImageKit. Un bloc `hero` avec image, créé depuis /admin/home,
+ * la remplace.
  */
 const FALLBACK = {
+  imageUrl: '/homepage.jpeg',
   title: 'La maison, la mode et le quotidien, livrés chez vous.',
   body:
     'Électroménager, vêtements, cuisine et plus encore. Vous commandez, on ' +
@@ -35,7 +37,7 @@ export async function Hero() {
   const body = block?.body ?? FALLBACK.body
   const ctaLabel = block?.ctaLabel ?? FALLBACK.ctaLabel
   const href = block?.href ?? FALLBACK.href
-  const imageUrl = block?.imageUrl ?? null
+  const imageUrl = block?.imageUrl ?? FALLBACK.imageUrl
 
   return (
     <section className="relative flex min-h-[calc(100svh-3.5rem)] flex-col justify-end overflow-hidden bg-ls-gray-900 md:min-h-[560px]">
@@ -46,7 +48,7 @@ export async function Hero() {
           fill
           priority
           sizes="100vw"
-          className="object-cover"
+          className="object-cover md:object-[center_65%]"
         />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/5" />
