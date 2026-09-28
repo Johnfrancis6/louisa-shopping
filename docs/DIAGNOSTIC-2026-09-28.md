@@ -15,7 +15,7 @@ This is a diagnosis only: nothing was changed in code, config or secrets.
 | D5 | P2 | Missing security headers: CSP, X-Frame-Options, Referrer-Policy | Open |
 | D6 | P2 | The logo is still served from Cloudinary | Open |
 | D7 | P2 | 4 moderate `npm audit` advisories (esbuild via drizzle-kit, dev tooling only) | Open |
-| D8 | **P1** | The footer WhatsApp link on every page is broken: its `href` is literal JSX text | **Fixed** in the working tree, not yet deployed |
+| D8 | **P1** | The footer WhatsApp link on every page is broken: its `href` is literal JSX text | **Fixed and deployed** (`e370551`, verified live) |
 | D9 | P1 | Mobile performance under budget on 3 of 4 pages (perf 74–78, LCP 2.6–4.5 s) | Open |
 | D10 | P2 | The footer shows the placeholder "[Ville — À COMPLÉTER]" in production | Open |
 

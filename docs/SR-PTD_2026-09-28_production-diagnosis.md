@@ -50,7 +50,7 @@ The details are in the report:
 - **D5:** security headers.
 - **D6:** the logo on Cloudinary.
 - **D7:** the audit advisories.
-- **D8:** the footer link is **fixed** in `footer.tsx`. The `href` is now built from `whatsapp_config` with the fallback `+22660554400`. Lint and typecheck pass. It is not committed and not deployed.
+- **D8:** the footer link is **fixed** in `footer.tsx`. The `href` is now built from `whatsapp_config` with the fallback `+22660554400`. Commit `e370551`: CI passed, Netlify deployed it, and the link was verified live.
 - **D9:** performance.
 - **D10:** the placeholder copy.
 - **Not yet run:** the DB and Sentry checks, the admin flow and the IDOR test. `env.local` has no `DATABASE_URL_*` and no Sentry token.
