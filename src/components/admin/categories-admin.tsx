@@ -1,21 +1,25 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Trash2 } from 'lucide-react'
+import { ImageUp, Trash2, X } from 'lucide-react'
 import {
   createCategory,
   toggleCategoryVisibility,
   deleteCategory,
+  updateCategory,
+  uploadCategoryImage,
 } from '@/lib/actions/admin/categories'
-import { Card, fieldInput, btnPrimary, btnDanger } from './ui'
+import { Card, fieldInput, btnPrimary, btnDanger, btnOutline } from './ui'
 
 type Row = {
   id: string
   slug: string
   name: string
   bgColor: string
+  imageUrl: string | null
   position: number
   visible: boolean
 }
@@ -86,19 +90,60 @@ export function CategoryRow({ row }: { row: Row }) {
     })
   }
 
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    act(() => uploadCategoryImage(row.id, formData), 'Image mise en ligne')
+    // Permet de re-sélectionner le même fichier après un échec.
+    e.target.value = ''
+  }
+
   return (
     <Card className="gap-3">
       <div className="flex items-center gap-3">
-        <span
-          className="h-10 w-10 shrink-0 rounded-ls-sm border border-ls-gray-200"
+        {/* Vignette : l'image si elle existe, sinon la couleur de fond. */}
+        <div
+          className="relative h-16 w-16 shrink-0 overflow-hidden rounded-ls-sm border border-ls-gray-200"
           style={{ background: row.bgColor }}
-        />
+        >
+          {row.imageUrl && (
+            <Image src={row.imageUrl} alt="" fill sizes="64px" className="object-cover" />
+          )}
+        </div>
         <div className="min-w-0">
           <p className="truncate font-medium text-ls-gray-900">{row.name}</p>
           <p className="text-xs text-ls-gray-500">
             {row.slug} · position {row.position}
           </p>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => fileRef.current?.click()}
+          className={btnOutline}
+        >
+          <ImageUp size={15} />
+          {row.imageUrl ? "Remplacer l'image" : 'Ajouter une image'}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickImage} />
+        {row.imageUrl && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => act(() => updateCategory(row.id, { imageUrl: null }), 'Image retirée')}
+            className={btnOutline}
+          >
+            <X size={15} />
+            Retirer l&apos;image
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-ls-gray-100 pt-3">

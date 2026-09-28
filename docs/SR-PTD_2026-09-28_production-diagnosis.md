@@ -42,6 +42,12 @@ The goal was a full diagnosis of production (`louisa-shopping-dev.netlify.app`) 
 - **PPR in-stream redirects:** after `goto`, the URL only changes once the client runs `NEXT_REDIRECT`. Wait a few seconds before asserting on `page.url()`, otherwise `/admin` looks "allowed".
 - **A JSX attribute in quotes is a string:** `href="{`…${x}…`}"` compiles and passes lint and typecheck, but it ships broken. Only a runtime check catches it.
 
+## Follow-up: hero image (commit `9c744b4`)
+- **Change:** `public/homepage.jpeg` is now the hero fallback in `hero.tsx`. A `hero` block with an image created in `/admin/home` still takes precedence. On desktop, `md:object-[center_65%]` keeps the bags in frame.
+- **Result:** deployed to Netlify and verified live. The page returns 200, and `/homepage.jpeg` is served as a 46 KB JPEG.
+- **Local asset:** the custom loader passes local files through unchanged, so the `srcSet` lists the same file for every width. That's fine at 46 KB. A heavy image would need to go through ImageKit, via `/admin/home`.
+- **CI:** the first run failed at `next build` because `next/font/google` (Inter) could not be resolved (`Can't resolve '@vercel/turbopack-next/internal/font/google/font'`). This was a fetch from Google Fonts at build time on the runner. A re-run passed without any code change. The failure is intermittent and unrelated to the change. Self-hosting the font with `next/font/local` would remove the build-time network dependency.
+
 ## Open items
 The details are in the report:
 - **D2:** alerting.

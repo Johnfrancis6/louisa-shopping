@@ -13,6 +13,7 @@ import { dbAdmin } from "@/lib/db/client";
 import { category } from "@/lib/db/schema";
 import { validateCategoryBgColor } from "@/lib/utils/contrast";
 import { getAdminUserId } from "@/lib/auth-guards";
+import { uploadImage } from "@/lib/images/imagekit";
 
 type CategoryInput = {
   slug: string;
@@ -23,6 +24,7 @@ type CategoryInput = {
 };
 
 const DENIED = { ok: false as const, error: "Accès refusé." };
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8 Mo — aligné sur bodySizeLimit
 
 function bump() {
   revalidateTag("categories", { expire: 0 });
@@ -121,6 +123,46 @@ export async function deleteCategory(id: string) {
       error: "Impossible de supprimer : des produits sont encore rattachés à cette catégorie.",
     };
   }
+}
+
+/**
+ * Téléverse (ou remplace) l'image d'une catégorie — même chemin ImageKit que
+ * uploadHomeBlockImage (actions/admin/home.ts).
+ *
+ * ⚠️ `category` n'a pas de colonne `image_id` : le `fileId` ImageKit n'est pas
+ * conservé, donc l'image remplacée (ou retirée) reste sur le compte ImageKit.
+ * Orpheline inoffensive ; à corriger par une migration qui ajoute
+ * `category.image_id`, sur le modèle de `home_block.image_id`.
+ */
+export async function uploadCategoryImage(id: string, formData: FormData) {
+  if (!(await getAdminUserId())) return DENIED;
+
+  const file = formData.get("file") as File | null;
+  if (!file) return { ok: false as const, error: "Aucun fichier fourni." };
+  if (!file.type.startsWith("image/")) {
+    return { ok: false as const, error: "Le fichier n'est pas une image." };
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { ok: false as const, error: "Fichier trop lourd (max 8 Mo)." };
+  }
+
+  let uploaded: { id: string; url: string };
+  try {
+    uploaded = await uploadImage(file);
+  } catch (err) {
+    console.error("[admin/categories] uploadCategoryImage", err);
+    return { ok: false as const, error: "Échec de l'upload ImageKit." };
+  }
+
+  const [row] = await dbAdmin
+    .update(category)
+    .set({ imageUrl: uploaded.url, updatedAt: new Date() })
+    .where(eq(category.id, id))
+    .returning({ id: category.id });
+  if (!row) return { ok: false as const, error: "Catégorie introuvable." };
+
+  bump();
+  return { ok: true as const, imageUrl: uploaded.url };
 }
 
 /** Réordonnancement drag-and-drop — liste ordonnée des ids, écrite atomiquement. */

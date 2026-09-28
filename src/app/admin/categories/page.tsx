@@ -46,6 +46,7 @@ async function CategoriesList() {
             slug: c.slug,
             name: c.name,
             bgColor: c.bgColor,
+            imageUrl: c.imageUrl,
             position: c.position,
             visible: c.visible,
           }}
