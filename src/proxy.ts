@@ -22,6 +22,16 @@ export default function proxy(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // `/admin` n'a pas de contenu : on l'envoie sur les commandes par une vraie
+  // 307 HTTP. Le `redirect()` de src/app/admin/page.tsx ne suffit pas — en
+  // navigation client (<Link href="/admin"> de la navbar, de la bottom-nav,
+  // logo du sidebar, `router.replace(next)` après connexion) le routeur reçoit
+  // bien NEXT_REDIRECT dans la réponse RSC mais ne le suit pas : le clic ne
+  // fait rien. Une redirection HTTP, elle, est suivie par le fetch RSC.
+  if (req.nextUrl.pathname === "/admin" || req.nextUrl.pathname === "/admin/") {
+    return NextResponse.redirect(new URL("/admin/orders", req.url));
+  }
+
   return NextResponse.next();
 }
 
